@@ -1,0 +1,112 @@
+.report-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+}
+
+.report-hero {
+  height: 140px;
+  background: linear-gradient(135deg, #1f7a72 0%, #2d9c8f 60%, #d9b26f 100%);
+  border-radius: var(--radius) var(--radius) 0 0;
+  margin: -20px -20px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.report-hero-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 16px 20px;
+  background: linear-gradient(to top, rgba(20, 50, 54, 0.58) 0%, transparent 60%);
+  z-index: 2;
+}
+
+.report-hero-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.report-hero-badge span { font-size: 20px; }
+
+.report-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 40px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  max-width: 500px;
+  margin: 40px auto;
+}
+
+.success-icon { font-size: 52px; margin-bottom: 16px; }
+.success-title { font-family: var(--font-d); font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+.success-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 14px; }
+.success-ref { font-size: 13px; color: var(--text-secondary); }
+
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading { pointer-events: none; opacity: 0.75; }
+
+.report-archive-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-archive-item:last-child {
+  border-bottom: none;
+}
+
+.report-archive-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+
+.report-archive-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.report-archive-meta,
+.report-archive-detail,
+.report-archive-foot {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.report-archive-detail {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.report-archive-foot {
+  margin-top: 6px;
+  color: var(--cyan);
+}
