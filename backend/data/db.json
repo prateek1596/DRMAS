@@ -1,0 +1,165 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "fullName": "Alex Morgan",
+      "username": "admin",
+      "email": "admin@drams.gov",
+      "password": "admin123",
+      "role": "Admin"
+    },
+    {
+      "id": 2,
+      "fullName": "Nina Kareem",
+      "username": "ngo1",
+      "email": "ngo1@partners.org",
+      "password": "ngo12345",
+      "role": "NGO"
+    },
+    {
+      "id": 3,
+      "fullName": "Vikram Das",
+      "username": "volunteer1",
+      "email": "volunteer1@relief.org",
+      "password": "vol12345",
+      "role": "Volunteer"
+    },
+    {
+      "id": 1775721328681,
+      "fullName": "Prateek Yadav",
+      "email": "prateekyadav1596@gmail.com",
+      "username": "Prateek1596",
+      "password": "Prateek@1596",
+      "role": "Volunteer"
+    },
+    {
+      "id": 1775722384498,
+      "fullName": "Prateek Yadav",
+      "email": "prateekyadav848@gmail.com",
+      "username": "Prateek@1596",
+      "password": "12345678",
+      "role": "Admin"
+    }
+  ],
+  "resources": [
+    {
+      "id": 1,
+      "name": "Field Medical Kit",
+      "category": "Medical",
+      "qty": 12,
+      "location": "Zone D Depot",
+      "notes": "",
+      "status": "Available",
+      "assignedTo": ""
+    },
+    {
+      "id": 2,
+      "name": "Water Purifier Unit",
+      "category": "Water & Sanitation",
+      "qty": 60,
+      "location": "Zone A Depot",
+      "notes": "",
+      "status": "Available",
+      "assignedTo": ""
+    },
+    {
+      "id": 3,
+      "name": "Emergency Tent (10-person)",
+      "category": "Shelter",
+      "qty": 34,
+      "location": "Storage Wing B",
+      "notes": "",
+      "status": "Available",
+      "assignedTo": ""
+    },
+    {
+      "id": 4,
+      "name": "Portable Generator 5kW",
+      "category": "Power",
+      "qty": 8,
+      "location": "Main Depot",
+      "notes": "",
+      "status": "Low",
+      "assignedTo": ""
+    }
+  ],
+  "disasters": [
+    {
+      "id": 1,
+      "type": "Flood",
+      "severity": "Critical",
+      "location": "Riverside District, Zone 3",
+      "people": 1400,
+      "time": "2026-04-07T08:30",
+      "info": "Severe flooding, roads cut off. Immediate evacuation needed.",
+      "status": "Active",
+      "reportedBy": "Admin"
+    },
+    {
+      "id": 2,
+      "type": "Wildfire",
+      "severity": "High",
+      "location": "Northern Forest Grid, Zone 9",
+      "people": 320,
+      "time": "2026-04-08T06:00",
+      "info": "Fast-moving fire, wind-driven. Air support requested.",
+      "status": "Responding",
+      "reportedBy": "NGO"
+    }
+  ],
+  "allocations": [
+    {
+      "id": 1,
+      "icon": "💧",
+      "action": "500L Water Sent",
+      "detail": "North Sector · 12 mins ago",
+      "area": "Zone A – Riverside",
+      "resourceId": 2,
+      "qty": 20,
+      "volunteer": "Sarah Johnson",
+      "createdAt": "2026-04-08T09:18:00.000Z"
+    }
+  ],
+  "otsTasks": [
+    {
+      "id": 1,
+      "title": "Bridge access route clearance",
+      "incidentId": 1,
+      "zone": "Zone A – Riverside",
+      "priority": "High",
+      "owner": "Team Alpha",
+      "eta": "2026-04-09T18:00",
+      "status": "In Progress",
+      "notes": "Debris removal in section B",
+      "createdAt": "2026-04-09T07:12:00.000Z"
+    }
+  ],
+  "hazardZones": [
+    {
+      "id": 1,
+      "name": "Riverside Spill Corridor",
+      "region": "Zone A",
+      "hazardType": "Flood",
+      "riskLevel": "High",
+      "status": "Monitoring",
+      "population": 1800,
+      "evacuationPriority": "P1",
+      "coordinates": "25.330, 91.820",
+      "lastInspection": "2026-04-08",
+      "notes": "Water level rising near ward 3"
+    },
+    {
+      "id": 2,
+      "name": "Industrial Belt South",
+      "region": "Zone E",
+      "hazardType": "Chemical Spill",
+      "riskLevel": "Critical",
+      "status": "Restricted",
+      "population": 420,
+      "evacuationPriority": "P1",
+      "coordinates": "25.350, 91.785",
+      "lastInspection": "2026-04-09",
+      "notes": "Air quality below safe threshold"
+    }
+  ]
+}

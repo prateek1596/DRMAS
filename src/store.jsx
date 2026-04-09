@@ -1,37 +1,153 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { api } from './api';
 
 const Store = createContext(null);
 
-const initialResources = [
-  { id: 1, name: 'Field Medical Kit', category: 'Medical', qty: 12, location: 'Zone D Depot', status: 'Low', assignedTo: '' },
-  { id: 2, name: 'Water Purifier Unit', category: 'Water & Sanitation', qty: 60, location: 'Zone A Depot', status: 'Available', assignedTo: '' },
-  { id: 3, name: 'Emergency Tent (10-person)', category: 'Shelter', qty: 34, location: 'Storage Wing B', status: 'Available', assignedTo: '' },
-  { id: 4, name: 'Portable Generator 5kW', category: 'Power', qty: 8, location: 'Main Depot', status: 'Available', assignedTo: '' },
-  { id: 5, name: 'Rescue Rope & Harness', category: 'Rescue', qty: 3, location: 'Zone C Depot', status: 'Low', assignedTo: '' },
-  { id: 6, name: 'Food Ration Pack (7-day)', category: 'Food', qty: 200, location: 'Cold Storage A', status: 'Available', assignedTo: '' },
-  { id: 7, name: 'Communication Radio', category: 'Communication', qty: 25, location: 'HQ Storage', status: 'Assigned', assignedTo: 'Team Alpha' },
-];
-
-const initialDisasters = [
-  { id: 1, type: 'Flood', severity: 'Critical', location: 'Riverside District, Zone 3', people: 1400, time: '2024-12-01T08:30', info: 'Severe flooding, roads cut off. Immediate evacuation needed.', status: 'Active', reportedBy: 'Admin' },
-  { id: 2, type: 'Wildfire', severity: 'High', location: 'Northern Forest Grid, Zone 9', people: 320, time: '2024-12-01T06:00', info: 'Fast-moving fire, wind-driven. Air support requested.', status: 'Active', reportedBy: 'NGO' },
-  { id: 3, type: 'Earthquake', severity: 'Moderate', location: 'Downtown Core, District 5', people: 80, time: '2024-11-30T22:15', info: 'Structural damage to 3 buildings. Search & rescue underway.', status: 'Responding', reportedBy: 'Admin' },
-];
-
 export function StoreProvider({ children }) {
-  const [resources, setResources] = useState(initialResources);
-  const [disasters, setDisasters] = useState(initialDisasters);
+  const [resources, setResources] = useState([]);
+  const [disasters, setDisasters] = useState([]);
+  const [allocations, setAllocations] = useState([]);
+  const [otsTasks, setOtsTasks] = useState([]);
+  const [hazardZones, setHazardZones] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const addResource = (r) => setResources(prev => [...prev, { ...r, id: Date.now(), status: Number(r.qty) < 10 ? 'Low' : 'Available', assignedTo: '' }]);
-  const updateResource = (id, changes) => setResources(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r));
-  const deleteResource = (id) => setResources(prev => prev.filter(r => r.id !== id));
+  const loadBootstrap = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await api.bootstrap();
+      setResources(data.resources || []);
+      setDisasters(data.disasters || []);
+      setAllocations(data.allocations || []);
+      setOtsTasks(data.otsTasks || []);
+      setHazardZones(data.hazardZones || []);
+    } catch (e) {
+      setError(e.message || 'Failed to load data from backend.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const addDisaster = (d) => setDisasters(prev => [...prev, { ...d, id: Date.now(), status: 'Active', reportedBy: 'Admin' }]);
-  const updateDisaster = (id, changes) => setDisasters(prev => prev.map(d => d.id === id ? { ...d, ...changes } : d));
-  const deleteDisaster = (id) => setDisasters(prev => prev.filter(d => d.id !== id));
+  useEffect(() => {
+    loadBootstrap();
+  }, [loadBootstrap]);
+
+  const addResource = async (payload) => {
+    const created = await api.createResource(payload);
+    setResources((prev) => [...prev, created]);
+    return created;
+  };
+
+  const updateResource = async (id, changes) => {
+    const updated = await api.updateResource(id, changes);
+    setResources((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    return updated;
+  };
+
+  const deleteResource = async (id) => {
+    await api.deleteResource(id);
+    setResources((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const assignResource = async (id, assignedTo) => {
+    const updated = await api.assignResource(id, assignedTo);
+    setResources((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    return updated;
+  };
+
+  const unassignResource = async (id) => {
+    const updated = await api.unassignResource(id);
+    setResources((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    return updated;
+  };
+
+  const addDisaster = async (payload) => {
+    const created = await api.createDisaster(payload);
+    setDisasters((prev) => [...prev, created]);
+    return created;
+  };
+
+  const updateDisaster = async (id, changes) => {
+    const updated = await api.updateDisaster(id, changes);
+    setDisasters((prev) => prev.map((d) => (d.id === id ? updated : d)));
+    return updated;
+  };
+
+  const deleteDisaster = async (id) => {
+    await api.deleteDisaster(id);
+    setDisasters((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const createAllocation = async (payload) => {
+    const result = await api.createAllocation(payload);
+    setAllocations((prev) => [result.allocation, ...prev]);
+    setResources((prev) => prev.map((r) => (r.id === result.resource.id ? result.resource : r)));
+    return result.allocation;
+  };
+
+  const addOtsTask = async (payload) => {
+    const created = await api.createOtsTask(payload);
+    setOtsTasks((prev) => [created, ...prev]);
+    return created;
+  };
+
+  const updateOtsTask = async (id, payload) => {
+    const updated = await api.updateOtsTask(id, payload);
+    setOtsTasks((prev) => prev.map((task) => (task.id === id ? updated : task)));
+    return updated;
+  };
+
+  const deleteOtsTask = async (id) => {
+    await api.deleteOtsTask(id);
+    setOtsTasks((prev) => prev.filter((task) => task.id !== id));
+  };
+
+  const addHazardZone = async (payload) => {
+    const created = await api.createHazardZone(payload);
+    setHazardZones((prev) => [created, ...prev]);
+    return created;
+  };
+
+  const updateHazardZone = async (id, payload) => {
+    const updated = await api.updateHazardZone(id, payload);
+    setHazardZones((prev) => prev.map((zone) => (zone.id === id ? updated : zone)));
+    return updated;
+  };
+
+  const deleteHazardZone = async (id) => {
+    await api.deleteHazardZone(id);
+    setHazardZones((prev) => prev.filter((zone) => zone.id !== id));
+  };
 
   return (
-    <Store.Provider value={{ resources, addResource, updateResource, deleteResource, disasters, addDisaster, updateDisaster, deleteDisaster }}>
+    <Store.Provider
+      value={{
+        resources,
+        disasters,
+        allocations,
+        otsTasks,
+        hazardZones,
+        loading,
+        error,
+        reload: loadBootstrap,
+        addResource,
+        updateResource,
+        deleteResource,
+        assignResource,
+        unassignResource,
+        addDisaster,
+        updateDisaster,
+        deleteDisaster,
+        createAllocation,
+        addOtsTask,
+        updateOtsTask,
+        deleteOtsTask,
+        addHazardZone,
+        updateHazardZone,
+        deleteHazardZone,
+      }}
+    >
       {children}
     </Store.Provider>
   );

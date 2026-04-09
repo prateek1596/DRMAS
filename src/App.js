@@ -1,57 +1,91 @@
 import React, { useEffect, useState } from 'react';
 import './styles/global.css';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { StoreProvider } from './store';
 import { ToastProvider } from './components/Toast';
+import { api, bootstrapSession, login, logout, register, session } from './api';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import Report from './pages/Report';
 import Allocation from './pages/Allocation';
+import Ots from './pages/Ots';
+import HazardZoning from './pages/HazardZoning';
+import AuditLogs from './pages/AuditLogs';
 
-const USERS_KEY = 'drams-users';
-const SESSION_KEY = 'drams-session-user';
-
-const seedUsers = [
-  { id: 1, fullName: 'Alex Morgan', username: 'admin', email: 'admin@drams.gov', password: 'admin123', role: 'Admin' },
-  { id: 2, fullName: 'Nina Kareem', username: 'ngo1', email: 'ngo1@partners.org', password: 'ngo12345', role: 'NGO' },
-  { id: 3, fullName: 'Vikram Das', username: 'volunteer1', email: 'volunteer1@relief.org', password: 'vol12345', role: 'Volunteer' },
-];
-
-const readUsers = () => {
-  const raw = localStorage.getItem(USERS_KEY);
-  if (!raw) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(seedUsers));
-    return seedUsers;
-  }
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length) return parsed;
-  } catch {}
-  localStorage.setItem(USERS_KEY, JSON.stringify(seedUsers));
-  return seedUsers;
+const PAGE_ROUTES = {
+  dashboard: '/dashboard',
+  inventory: '/inventory',
+  report: '/report',
+  allocation: '/allocation',
+  ots: '/ots',
+  hazard: '/hazard',
+  audit: '/audit',
+  volunteers: '/volunteers',
 };
 
+const PAGE_FLAG_MAP = {
+  allocation: 'allocationModule',
+  ots: 'otsModule',
+  hazard: 'hazardModule',
+  volunteers: 'volunteersModule',
+};
+
+function getPageFromPath(pathname) {
+  const match = Object.entries(PAGE_ROUTES).find(([, path]) => path === pathname);
+  return match ? match[0] : 'dashboard';
+}
+
 function AppInner() {
-  const [users, setUsers] = useState(() => readUsers());
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem(SESSION_KEY);
-    return saved ? JSON.parse(saved) : null;
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [currentUser, setCurrentUser] = useState(() => session.getUser());
+  const [featureFlags, setFeatureFlags] = useState({
+    allocationModule: true,
+    otsModule: true,
+    hazardModule: true,
+    volunteersModule: true,
+    dashboardTrends: true,
   });
-  const [page, setPage] = useState('dashboard');
 
   const loggedIn = Boolean(currentUser);
+  const page = getPageFromPath(location.pathname);
+
+  const isPageEnabled = (pageName) => {
+    const flag = PAGE_FLAG_MAP[pageName];
+    if (!flag) return true;
+    return featureFlags[flag] !== false;
+  };
+
+  const onNav = (nextPage) => {
+    const destination = isPageEnabled(nextPage) ? nextPage : 'dashboard';
+    navigate(PAGE_ROUTES[destination] || PAGE_ROUTES.dashboard);
+  };
 
   useEffect(() => {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  }, [users]);
+    const init = async () => {
+      const user = await bootstrapSession();
+      if (user) setCurrentUser(user);
+    };
+    init();
+  }, []);
 
   useEffect(() => {
-    if (!currentUser) {
-      localStorage.removeItem(SESSION_KEY);
-      return;
+    if (!loggedIn) return;
+    api
+      .getFeatureFlags()
+      .then((flags) => setFeatureFlags((prev) => ({ ...prev, ...flags })))
+      .catch(() => {
+        // Keep defaults if flags cannot be fetched.
+      });
+  }, [loggedIn]);
+
+  useEffect(() => {
+    const desiredPage = getPageFromPath(location.pathname);
+    if (loggedIn && !isPageEnabled(desiredPage)) {
+      navigate(PAGE_ROUTES.dashboard, { replace: true });
     }
-    localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
-  }, [currentUser]);
+  }, [featureFlags, location.pathname, loggedIn, navigate]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -91,62 +125,70 @@ function AppInner() {
 
     nodes.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
-  }, [page, loggedIn]);
+  }, [location.pathname, loggedIn]);
 
-  const handleLogin = ({ username, password, role }) => {
-    const account = users.find((user) => user.username.toLowerCase() === username.toLowerCase());
-    if (!account) return { ok: false, message: 'User account not found.' };
-    if (account.password !== password) return { ok: false, message: 'Incorrect password.' };
-    if (role && account.role !== role) return { ok: false, message: `Role mismatch. Account is registered as ${account.role}.` };
-
-    setCurrentUser({ fullName: account.fullName, username: account.username, role: account.role, email: account.email });
-    setPage('dashboard');
-    return { ok: true };
+  const handleLogin = ({ username, password }) => {
+    return login({ username, password })
+      .then((user) => {
+        setCurrentUser(user);
+        navigate(PAGE_ROUTES.dashboard, { replace: true });
+        return { ok: true };
+      })
+      .catch((error) => ({ ok: false, message: error.message || 'Unable to sign in.' }));
   };
 
-  const handleRegister = ({ fullName, email, username, password, role }) => {
-    const existsByUsername = users.some((user) => user.username.toLowerCase() === username.toLowerCase());
-    if (existsByUsername) return { ok: false, message: 'Username already exists. Choose another one.' };
-    const existsByEmail = users.some((user) => user.email.toLowerCase() === email.toLowerCase());
-    if (existsByEmail) return { ok: false, message: 'Email already registered. Try logging in.' };
-
-    const account = {
-      id: Date.now(),
-      fullName,
-      email,
-      username,
-      password,
-      role,
-    };
-    setUsers((current) => [...current, account]);
-    return { ok: true, message: 'Account created successfully. Please log in.' };
+  const handleRegister = ({ fullName, email, username, password }) => {
+    return register({ fullName, email, username, password })
+      .then((result) => ({ ok: true, message: result.message || 'Account created successfully. Please log in.' }))
+      .catch((error) => ({ ok: false, message: error.message || 'Unable to register user.' }));
   };
 
   const handleLogout = () => {
-    setCurrentUser(null);
-    setPage('dashboard');
+    logout().finally(() => {
+      setCurrentUser(null);
+      navigate('/login', { replace: true });
+    });
   };
 
-  if (!loggedIn) return <Login onLogin={handleLogin} onRegister={handleRegister} />;
+  if (!loggedIn) {
+    return (
+      <div className="route-transition" key={location.pathname}>
+        <Routes>
+          <Route path="/login" element={<Login onLogin={handleLogin} onRegister={handleRegister} />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </div>
+    );
+  }
 
-  const props = { page, onNav: setPage, currentUser, onLogout: handleLogout };
+  const props = { page, onNav, currentUser, onLogout: handleLogout, featureFlags };
   return (
-    <>
-      {page === 'dashboard' && <Dashboard {...props} />}
-      {page === 'inventory' && <Inventory {...props} />}
-      {page === 'report'    && <Report    {...props} />}
-      {page === 'allocation'&& <Allocation {...props} />}
-      {page === 'volunteers' && (
-        <div className="app-shell">
-          <div style={{flex:1,marginLeft:230,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',gap:12,color:'var(--text-secondary)'}}>
-            <span style={{fontSize:48}}>👥</span>
-            <div style={{fontFamily:'var(--font-d)',fontSize:22,fontWeight:700,color:'var(--text-primary)'}}>Volunteers Module</div>
-            <div>Coming soon</div>
-            <button className="btn btn-outline" onClick={() => setPage('dashboard')}>← Back to Dashboard</button>
-          </div>
-        </div>
-      )}
-    </>
+    <div className="route-transition" key={location.pathname}>
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard {...props} />} />
+        <Route path="/inventory" element={<Inventory {...props} />} />
+        <Route path="/report" element={<Report {...props} />} />
+        <Route path="/allocation" element={<Allocation {...props} />} />
+        <Route path="/ots" element={<Ots {...props} />} />
+        <Route path="/hazard" element={<HazardZoning {...props} />} />
+        <Route path="/audit" element={<AuditLogs {...props} />} />
+        <Route
+          path="/volunteers"
+          element={(
+            <div className="app-shell">
+              <div style={{flex:1,marginLeft:230,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',gap:12,color:'var(--text-secondary)'}}>
+                <span style={{fontSize:48}}>👥</span>
+                <div style={{fontFamily:'var(--font-d)',fontSize:22,fontWeight:700,color:'var(--text-primary)'}}>Volunteers Module</div>
+                <div>Coming soon</div>
+                <button className="btn btn-outline" onClick={() => onNav('dashboard')}>← Back to Dashboard</button>
+              </div>
+            </div>
+          )}
+        />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </div>
   );
 }
 
@@ -154,7 +196,9 @@ export default function App() {
   return (
     <StoreProvider>
       <ToastProvider>
-        <AppInner />
+        <BrowserRouter>
+          <AppInner />
+        </BrowserRouter>
       </ToastProvider>
     </StoreProvider>
   );

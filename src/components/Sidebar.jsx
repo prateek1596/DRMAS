@@ -8,11 +8,14 @@ const NAV = [
   ]},
   { label: 'Operational', items: [
     { icon: '🚁', label: 'Allocation', page: 'allocation' },
+    { icon: '🛰️', label: 'OTS Control', page: 'ots' },
+    { icon: '🗺️', label: 'Hazard Zoning', page: 'hazard' },
+    { icon: '🧾', label: 'Audit Logs', page: 'audit' },
     { icon: '👥', label: 'Volunteers', page: 'volunteers' },
   ]},
 ];
 
-export default function Sidebar({ page, onNav, currentUser }) {
+export default function Sidebar({ page, onNav, currentUser, enabledPages }) {
   const initials = (currentUser?.fullName || 'Alex Morgan')
     .split(' ')
     .map((part) => part[0])
@@ -33,7 +36,7 @@ export default function Sidebar({ page, onNav, currentUser }) {
         {NAV.map(s => (
           <div key={s.label}>
             <div className="nav-sec-label">{s.label}</div>
-            {s.items.map(i => (
+            {s.items.filter((i) => enabledPages?.[i.page] !== false).map(i => (
               <button key={i.page} className={`nav-link${page === i.page ? ' active' : ''}`} onClick={() => onNav(i.page)}>
                 <span className="nav-icon">{i.icon}</span>{i.label}
               </button>

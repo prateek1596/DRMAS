@@ -1,57 +1,46 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
+import PageState from '../components/PageState';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
 
 const ZONES = ['Zone A – Riverside', 'Zone B – Highland', 'Zone C – Downtown', 'Zone D – Coastal', 'Zone E – Industrial'];
 const LEADS = ['Sarah Johnson', 'Mike Torres', 'Emma Wilson', 'Chris Park', 'Aditya Kumar'];
 
-export default function Allocation({ page, onNav, currentUser, onLogout }) {
-  const { resources, updateResource } = useStore();
+export default function Allocation({ page, onNav, currentUser, onLogout, featureFlags }) {
+  const { resources, allocations, createAllocation, loading, error } = useStore();
   const toast = useToast();
   const [form, setForm] = useState({ area: '', resourceId: '', qty: '', volunteer: '' });
-  const [log, setLog] = useState([
-    { id: 1, icon: '💧', action: '500L Water Sent', detail: 'North Sector · 12 mins ago' },
-    { id: 2, icon: '🏥', action: 'Medical Kit Refill', detail: 'Central Plaza · 40 mins ago' },
-    { id: 3, icon: '⛺', action: 'Shelter Kits Deployed', detail: 'Zone D Coastal · 2 hrs ago' },
-  ]);
-  const [loading, setLoading] = useState(false);
+  const [allocating, setAllocating] = useState(false);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const availableResources = resources.filter(r => r.status !== 'Assigned' && Number(r.qty) > 0);
   const selectedResource = resources.find(r => r.id === Number(form.resourceId));
 
-  const handleAllocate = () => {
+  const handleAllocate = async () => {
     if (!form.area || !form.resourceId || !form.qty) { toast('Please fill all required fields.', 'error'); return; }
     const qty = Number(form.qty);
     if (qty <= 0) { toast('Quantity must be greater than 0.', 'error'); return; }
     if (selectedResource && qty > Number(selectedResource.qty)) {
       toast(`Only ${selectedResource.qty} units available.`, 'error'); return;
     }
-    setLoading(true);
-    setTimeout(() => {
-      // Deduct from inventory
-      if (selectedResource) {
-        const newQty = Number(selectedResource.qty) - qty;
-        updateResource(selectedResource.id, {
-          qty: newQty,
-          status: newQty < 10 ? 'Low' : selectedResource.status,
-          assignedTo: form.volunteer ? form.volunteer : selectedResource.assignedTo,
-        });
-      }
-      const entry = {
-        id: Date.now(),
-        icon: '📦',
-        action: `${qty}x ${selectedResource?.name} → ${form.area}`,
-        detail: (form.volunteer ? `Lead: ${form.volunteer} · ` : '') + 'Just now',
-      };
-      setLog(l => [entry, ...l]);
+    setAllocating(true);
+    try {
+      await createAllocation({
+        area: form.area,
+        resourceId: Number(form.resourceId),
+        qty,
+        volunteer: form.volunteer,
+      });
       setForm({ area: '', resourceId: '', qty: '', volunteer: '' });
-      setLoading(false);
+      setAllocating(false);
       toast(`✅ ${qty} units of "${selectedResource?.name}" allocated to ${form.area}`);
-    }, 800);
+    } catch (error) {
+      setAllocating(false);
+      toast(error.message || 'Unable to allocate resources.', 'error');
+    }
   };
 
   const totalStock = resources.reduce((s, r) => s + Number(r.qty), 0);
@@ -59,10 +48,22 @@ export default function Allocation({ page, onNav, currentUser, onLogout }) {
 
   return (
     <div className="app-shell">
-      <Sidebar page={page} onNav={onNav} currentUser={currentUser} />
+      <Sidebar
+        page={page}
+        onNav={onNav}
+        currentUser={currentUser}
+        enabledPages={{
+          allocation: featureFlags?.allocationModule !== false,
+          ots: featureFlags?.otsModule !== false,
+          hazard: featureFlags?.hazardModule !== false,
+          volunteers: featureFlags?.volunteersModule !== false,
+        }}
+      />
       <div className="main-area page-allocation">
         <Topbar title="Resource Allocation" subtitle="Deploy personnel and supplies to active response zones." currentUser={currentUser} onLogout={onLogout} />
         <div className="page-body">
+          <PageState loading={loading} error={error} />
+
           <div className="grid-auto anim-1">
             {/* Left - Form */}
             <div>
@@ -109,8 +110,8 @@ export default function Allocation({ page, onNav, currentUser, onLogout }) {
                 </div>
 
                 <button className="btn btn-primary btn-lg" style={{width:'100%',justifyContent:'center',marginTop:6}}
-                  onClick={handleAllocate} disabled={loading || !form.area || !form.resourceId || !form.qty}>
-                  {loading ? <><span className="spinner" /> Allocating…</> : '▶ ALLOCATE RESOURCES'}
+                  onClick={handleAllocate} disabled={allocating || !form.area || !form.resourceId || !form.qty}>
+                  {allocating ? <><span className="spinner" /> Allocating…</> : '▶ ALLOCATE RESOURCES'}
                 </button>
                 <p style={{fontSize:11,color:'var(--text-muted)',textAlign:'center',marginTop:9}}>
                   Inventory levels update automatically upon allocation.
@@ -180,7 +181,7 @@ export default function Allocation({ page, onNav, currentUser, onLogout }) {
                 <div className="card-header">
                   <span className="card-title">⚡ Allocation Log</span>
                 </div>
-                {log.slice(0, 6).map(l => (
+                {allocations.slice(0, 6).map(l => (
                   <div key={l.id} className="activity-item">
                     <div style={{fontSize:18,flexShrink:0}}>{l.icon}</div>
                     <div className="activity-content">

@@ -1,26 +1,19 @@
 import React, { useState } from 'react';
 import './Login.css';
 
-const ROLES = [
-  { id: 'Admin', icon: '⚡', label: 'Admin' },
-  { id: 'NGO', icon: '🏢', label: 'NGO' },
-  { id: 'Volunteer', icon: '🙋', label: 'Volunteer' },
-];
-
 export default function Login({ onLogin, onRegister }) {
   const [mode, setMode] = useState('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('Admin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [portalNotice, setPortalNotice] = useState('');
   const [register, setRegister] = useState({
     fullName: '',
     email: '',
     username: '',
     password: '',
     confirmPassword: '',
-    role: 'Volunteer',
   });
   const [registerStatus, setRegisterStatus] = useState('');
   const [parallax, setParallax] = useState({ x: 0, y: 0, s: 0 });
@@ -43,7 +36,7 @@ export default function Login({ onLogin, onRegister }) {
     };
   }, []);
 
-  const handleLoginSubmit = (event) => {
+  const handleLoginSubmit = async (event) => {
     event.preventDefault();
     if (!username.trim() || !password.trim()) {
       setError('Please enter username and password.');
@@ -52,11 +45,9 @@ export default function Login({ onLogin, onRegister }) {
 
     setError('');
     setLoading(true);
-    setTimeout(() => {
-      const result = onLogin({ username: username.trim(), password, role });
-      if (!result?.ok) setError(result?.message || 'Unable to sign in.');
-      setLoading(false);
-    }, 700);
+    const result = await onLogin({ username: username.trim(), password });
+    if (!result?.ok) setError(result?.message || 'Unable to sign in.');
+    setLoading(false);
   };
 
   const setRegisterField = (key) => (event) => {
@@ -64,7 +55,7 @@ export default function Login({ onLogin, onRegister }) {
     setRegisterStatus('');
   };
 
-  const handleRegisterSubmit = (event) => {
+  const handleRegisterSubmit = async (event) => {
     event.preventDefault();
     if (!register.fullName || !register.email || !register.username || !register.password || !register.confirmPassword) {
       setRegisterStatus('Please fill all required registration fields.');
@@ -79,12 +70,11 @@ export default function Login({ onLogin, onRegister }) {
       return;
     }
 
-    const result = onRegister({
+    const result = await onRegister({
       fullName: register.fullName.trim(),
       email: register.email.trim(),
       username: register.username.trim(),
       password: register.password,
-      role: register.role,
     });
 
     if (!result?.ok) {
@@ -95,9 +85,8 @@ export default function Login({ onLogin, onRegister }) {
     setRegisterStatus(result.message || 'Registration successful. Please sign in.');
     setMode('login');
     setUsername(register.username.trim());
-    setRole(register.role);
     setPassword('');
-    setRegister({ fullName: '', email: '', username: '', password: '', confirmPassword: '', role: 'Volunteer' });
+    setRegister({ fullName: '', email: '', username: '', password: '', confirmPassword: '' });
   };
 
   return (
@@ -112,8 +101,10 @@ export default function Login({ onLogin, onRegister }) {
           <span className="brand-name" style={{fontSize:16}}>DRAMS</span>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:18}}>
-          {['System Status','Help Desk','About'].map(l => <a key={l} href="#" className="nav-plain">{l}</a>)}
-          <button className="btn btn-danger btn-sm">🚨 Emergency Protocol</button>
+          <a href="#" className="nav-plain" onClick={(e) => { e.preventDefault(); setPortalNotice('System Status: All regional nodes online.'); }}>System Status</a>
+          <a href="#" className="nav-plain" onClick={(e) => { e.preventDefault(); setPortalNotice('Help Desk: Reach support at helpdesk@drams.gov'); }}>Help Desk</a>
+          <a href="#" className="nav-plain" onClick={(e) => { e.preventDefault(); setPortalNotice('DRAMS v1.0: Disaster operations and resource control platform.'); }}>About</a>
+          <button className="btn btn-danger btn-sm" onClick={() => setPortalNotice('Emergency protocol initiated: prioritize critical incidents and enable dispatch mode.')}>🚨 Emergency Protocol</button>
         </div>
       </nav>
 
@@ -132,6 +123,7 @@ export default function Login({ onLogin, onRegister }) {
 
             {mode === 'login' ? (
               <>
+                {portalNotice && <div className="state-banner state-empty" style={{ marginBottom: 10 }}>{portalNotice}</div>}
                 <h2 className="login-h2">Account Access</h2>
                 <p className="login-sub">Please sign in to the resource management dashboard.</p>
                 <form onSubmit={handleLoginSubmit} style={{marginTop:18}}>
@@ -152,15 +144,8 @@ export default function Login({ onLogin, onRegister }) {
                       <input className="form-control" style={{paddingLeft:36}} type="password" placeholder="••••••••" value={password} onChange={e=>{setPassword(e.target.value);setError('')}} />
                     </div>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Access Level</label>
-                    <div className="role-grid">
-                      {ROLES.map(r => (
-                        <button key={r.id} type="button" className={`role-btn${role===r.id?' active':''}`} onClick={()=>setRole(r.id)}>
-                          <span style={{fontSize:20}}>{r.icon}</span>{r.label}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="state-banner state-empty" style={{ marginBottom: 10 }}>
+                    Secure sign-in enabled for all registered responders.
                   </div>
                   {error && <div className="auth-feedback auth-error">{error}</div>}
                   <button type="submit" className="btn btn-primary btn-lg" style={{width:'100%',justifyContent:'center'}} disabled={loading}>
@@ -178,17 +163,9 @@ export default function Login({ onLogin, onRegister }) {
                     <label className="form-label">Full Name</label>
                     <input className="form-control" placeholder="e.g. Priya Sharma" value={register.fullName} onChange={setRegisterField('fullName')} />
                   </div>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label className="form-label">Email</label>
-                      <input className="form-control" type="email" placeholder="name@agency.org" value={register.email} onChange={setRegisterField('email')} />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Role</label>
-                      <select className="form-control" value={register.role} onChange={setRegisterField('role')}>
-                        {ROLES.map((item) => <option key={item.id}>{item.id}</option>)}
-                      </select>
-                    </div>
+                  <div className="form-group">
+                    <label className="form-label">Email</label>
+                    <input className="form-control" type="email" placeholder="name@agency.org" value={register.email} onChange={setRegisterField('email')} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Username</label>

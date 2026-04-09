@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import Modal from '../components/Modal';
+import PageState from '../components/PageState';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
 
@@ -47,8 +48,8 @@ function ResourceForm({ value, onChange }) {
   );
 }
 
-export default function Inventory({ page, onNav, currentUser, onLogout }) {
-  const { resources, addResource, updateResource, deleteResource } = useStore();
+export default function Inventory({ page, onNav, currentUser, onLogout, featureFlags }) {
+  const { resources, addResource, updateResource, deleteResource, assignResource, unassignResource, loading, error } = useStore();
   const toast = useToast();
   const [tab, setTab] = useState('All Resources');
   const [search, setSearch] = useState('');
@@ -69,42 +70,60 @@ export default function Inventory({ page, onNav, currentUser, onLogout }) {
   const openEdit = (r) => { setEditTarget(r); setForm({ name: r.name, category: r.category, qty: r.qty, location: r.location, notes: r.notes || '' }); };
   const openAssign = (r) => { setAssignTarget(r); setAssignTo(r.assignedTo || ''); };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!form.name || !form.category || !form.qty || !form.location) { toast('Please fill all required fields.', 'error'); return; }
     setSaving(true);
-    setTimeout(() => {
-      addResource(form);
+    try {
+      await addResource(form);
       setForm(BLANK); setShowAdd(false); setSaving(false);
       toast(`✅ "${form.name}" added to inventory.`);
-    }, 600);
+    } catch (error) {
+      setSaving(false);
+      toast(error.message || 'Unable to add resource.', 'error');
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!form.name || !form.category || !form.qty || !form.location) { toast('Please fill all required fields.', 'error'); return; }
     setSaving(true);
-    setTimeout(() => {
-      updateResource(editTarget.id, { ...form, status: Number(form.qty) < 10 ? 'Low' : editTarget.status === 'Assigned' ? 'Assigned' : 'Available' });
+    try {
+      await updateResource(editTarget.id, { ...form });
       setEditTarget(null); setSaving(false);
       toast(`✅ "${form.name}" updated successfully.`);
-    }, 600);
+    } catch (error) {
+      setSaving(false);
+      toast(error.message || 'Unable to update resource.', 'error');
+    }
   };
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!assignTo.trim()) { toast('Enter a team or person to assign to.', 'error'); return; }
-    updateResource(assignTarget.id, { assignedTo: assignTo, status: 'Assigned' });
-    setAssignTarget(null);
-    toast(`📦 "${assignTarget.name}" assigned to ${assignTo}.`);
+    try {
+      await assignResource(assignTarget.id, assignTo.trim());
+      setAssignTarget(null);
+      toast(`📦 "${assignTarget.name}" assigned to ${assignTo}.`);
+    } catch (error) {
+      toast(error.message || 'Unable to assign resource.', 'error');
+    }
   };
 
-  const handleUnassign = (r) => {
-    updateResource(r.id, { assignedTo: '', status: Number(r.qty) < 10 ? 'Low' : 'Available' });
-    toast(`"${r.name}" has been unassigned.`, 'info');
+  const handleUnassign = async (r) => {
+    try {
+      await unassignResource(r.id);
+      toast(`"${r.name}" has been unassigned.`, 'info');
+    } catch (error) {
+      toast(error.message || 'Unable to unassign resource.', 'error');
+    }
   };
 
-  const handleDelete = () => {
-    deleteResource(deleteTarget.id);
-    toast(`🗑️ "${deleteTarget.name}" removed from inventory.`, 'info');
-    setDeleteTarget(null);
+  const handleDelete = async () => {
+    try {
+      await deleteResource(deleteTarget.id);
+      toast(`🗑️ "${deleteTarget.name}" removed from inventory.`, 'info');
+      setDeleteTarget(null);
+    } catch (error) {
+      toast(error.message || 'Unable to delete resource.', 'error');
+    }
   };
 
   const low = resources.filter(r => r.status === 'Low').length;
@@ -113,10 +132,21 @@ export default function Inventory({ page, onNav, currentUser, onLogout }) {
 
   return (
     <div className="app-shell">
-      <Sidebar page={page} onNav={onNav} currentUser={currentUser} />
+      <Sidebar
+        page={page}
+        onNav={onNav}
+        currentUser={currentUser}
+        enabledPages={{
+          allocation: featureFlags?.allocationModule !== false,
+          ots: featureFlags?.otsModule !== false,
+          hazard: featureFlags?.hazardModule !== false,
+          volunteers: featureFlags?.volunteersModule !== false,
+        }}
+      />
       <div className="main-area page-inventory">
         <Topbar title="Resource Inventory" subtitle="Manage and track your organization's assets in real-time." currentUser={currentUser} onLogout={onLogout} />
         <div className="page-body">
+          <PageState loading={loading} error={error} />
 
           {/* Stats */}
           <div className="grid-3 mb-4 anim-1">
@@ -161,7 +191,7 @@ export default function Inventory({ page, onNav, currentUser, onLogout }) {
               </div>
             </div>
 
-            <div style={{overflowX:'auto'}}>
+            <div className="desktop-table" style={{overflowX:'auto'}}>
               <table className="data-table">
                 <thead>
                   <tr>
@@ -204,6 +234,33 @@ export default function Inventory({ page, onNav, currentUser, onLogout }) {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="mobile-list">
+              {filtered.map((resource) => (
+                <div className="mobile-entity-card" key={`mobile-${resource.id}`}>
+                  <div className="mobile-entity-head">
+                    <div>
+                      <div className="mobile-entity-title">{resource.name}</div>
+                      <div className="mobile-entity-sub">{resource.location}</div>
+                    </div>
+                    <span className={`badge ${statusClass(resource.status)}`}>{resource.status}</span>
+                  </div>
+                  <div className="mobile-entity-meta">
+                    <span>Category: {resource.category}</span>
+                    <span>Qty: {resource.qty}</span>
+                    <span>Assigned: {resource.assignedTo || '—'}</span>
+                  </div>
+                  <div className="mobile-entity-actions">
+                    <button className="btn btn-ghost btn-sm" onClick={() => openEdit(resource)}>Edit</button>
+                    {resource.status !== 'Assigned'
+                      ? <button className="btn btn-ghost btn-sm" onClick={() => openAssign(resource)}>Assign</button>
+                      : <button className="btn btn-ghost btn-sm" onClick={() => handleUnassign(resource)}>Unassign</button>}
+                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setDeleteTarget(resource)}>Delete</button>
+                  </div>
+                </div>
+              ))}
+              {filtered.length === 0 && <div className="state-banner state-empty">No resources found.</div>}
             </div>
 
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:14,fontSize:12,color:'var(--text-secondary)'}}>
