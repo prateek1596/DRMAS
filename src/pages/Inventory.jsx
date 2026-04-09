@@ -175,9 +175,9 @@ export default function Inventory({ page, onNav, currentUser, onLogout, featureF
           {/* Table */}
           <div className="card anim-2">
             <div className="card-header" style={{flexWrap:'wrap',gap:12}}>
-              <div style={{display:'flex',gap:3,background:'var(--bg-base)',borderRadius:8,padding:3,border:'1px solid var(--border)'}}>
+              <div style={{display:'flex',gap:3,background:'rgba(255,255,255,.18)',borderRadius:12,padding:3,border:'1px solid rgba(255,255,255,.24)',WebkitBackdropFilter:'blur(12px)',backdropFilter:'blur(12px)'}}>
                 {TABS.map(t => (
-                  <button key={t} onClick={() => setTab(t)} style={{padding:'5px 13px',borderRadius:6,border:'none',background:tab===t?'var(--blue)':'transparent',color:tab===t?'#fff':'var(--text-secondary)',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'var(--font-b)',transition:'all .2s'}}>
+                  <button key={t} onClick={() => setTab(t)} style={{padding:'5px 13px',borderRadius:10,border:'none',background:tab===t?'rgba(var(--page-accent-rgb),.82)':'transparent',color:tab===t?'#fff':'var(--text-secondary)',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'var(--font-b)',transition:'all .2s'}}>
                     {t}{t==='Low Stock'&&low>0?` (${low})`:t==='Assigned'&&assigned>0?` (${assigned})`:''}
                   </button>
                 ))}
@@ -303,7 +303,7 @@ export default function Inventory({ page, onNav, currentUser, onLogout, featureF
             <button className="btn btn-ghost" onClick={() => setAssignTarget(null)}>Cancel</button>
             <button className="btn btn-success" onClick={handleAssign}>Confirm Assignment</button>
           </>}>
-          <div style={{background:'var(--bg-raised)',borderRadius:'var(--radius-sm)',padding:'12px 14px',marginBottom:16,fontSize:13}}>
+          <div style={{background:'rgba(255,255,255,.18)',borderRadius:'var(--radius-sm)',padding:'12px 14px',marginBottom:16,fontSize:13,border:'1px solid rgba(255,255,255,.24)',WebkitBackdropFilter:'blur(12px)',backdropFilter:'blur(12px)'}}>
             <div style={{fontWeight:700,marginBottom:3}}>{assignTarget.name}</div>
             <div style={{color:'var(--text-secondary)',fontSize:12}}>{assignTarget.category} · {assignTarget.qty} units · {assignTarget.location}</div>
           </div>

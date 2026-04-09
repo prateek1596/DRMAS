@@ -12,6 +12,8 @@ import Allocation from './pages/Allocation';
 import Ots from './pages/Ots';
 import HazardZoning from './pages/HazardZoning';
 import AuditLogs from './pages/AuditLogs';
+import Volunteers from './pages/Volunteers';
+import Settings from './pages/Settings';
 
 const PAGE_ROUTES = {
   dashboard: '/dashboard',
@@ -22,6 +24,7 @@ const PAGE_ROUTES = {
   hazard: '/hazard',
   audit: '/audit',
   volunteers: '/volunteers',
+  settings: '/settings',
 };
 
 const PAGE_FLAG_MAP = {
@@ -172,19 +175,8 @@ function AppInner() {
         <Route path="/ots" element={<Ots {...props} />} />
         <Route path="/hazard" element={<HazardZoning {...props} />} />
         <Route path="/audit" element={<AuditLogs {...props} />} />
-        <Route
-          path="/volunteers"
-          element={(
-            <div className="app-shell">
-              <div style={{flex:1,marginLeft:230,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',gap:12,color:'var(--text-secondary)'}}>
-                <span style={{fontSize:48}}>👥</span>
-                <div style={{fontFamily:'var(--font-d)',fontSize:22,fontWeight:700,color:'var(--text-primary)'}}>Volunteers Module</div>
-                <div>Coming soon</div>
-                <button className="btn btn-outline" onClick={() => onNav('dashboard')}>← Back to Dashboard</button>
-              </div>
-            </div>
-          )}
-        />
+        <Route path="/volunteers" element={<Volunteers {...props} />} />
+        <Route path="/settings" element={<Settings {...props} />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

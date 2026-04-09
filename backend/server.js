@@ -19,6 +19,26 @@ const FEATURE_FLAGS = {
   allocationModule: process.env.FLAG_ALLOCATION_MODULE !== 'false',
 };
 
+const SETTINGS_DEFAULTS = {
+  profile: {
+    fullName: '',
+    email: '',
+    callSign: '',
+  },
+  notifications: {
+    lowStockAlerts: true,
+    incidentEscalations: true,
+    hazardCritical: true,
+    digestDaily: false,
+  },
+  operations: {
+    defaultZone: 'Zone A - Riverside',
+    autoRefreshSeconds: '30',
+    requireDeleteConfirm: true,
+    compactTables: false,
+  },
+};
+
 app.use(cors());
 app.use(express.json());
 
@@ -81,6 +101,41 @@ function toDayKey(dateLike) {
   const d = new Date(dateLike || Date.now());
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString().slice(0, 10);
+}
+
+function parseJsonObject(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(String(raw));
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+async function readSettingsForUser(userId) {
+  const user = await get(db, 'SELECT fullName, email, username FROM users WHERE id = ?', [userId]);
+  const base = {
+    ...SETTINGS_DEFAULTS,
+    profile: {
+      ...SETTINGS_DEFAULTS.profile,
+      fullName: user?.fullName || '',
+      email: user?.email || '',
+      callSign: user?.username || '',
+    },
+  };
+
+  const row = await get(db, 'SELECT * FROM user_settings WHERE userId = ?', [userId]);
+  if (!row) return base;
+
+  return {
+    ...base,
+    profile: { ...base.profile, ...parseJsonObject(row.profileJson) },
+    notifications: { ...SETTINGS_DEFAULTS.notifications, ...parseJsonObject(row.notificationsJson) },
+    operations: { ...SETTINGS_DEFAULTS.operations, ...parseJsonObject(row.operationsJson) },
+  };
 }
 
 app.get('/api/health', (req, res) => {
@@ -678,6 +733,161 @@ app.delete('/api/hazard-zones/:id', requireAuth, async (req, res) => {
     entityId: id,
   });
   res.status(204).send();
+});
+
+app.get('/api/volunteers', requireAuth, async (req, res) => {
+  const rows = await all(db, 'SELECT * FROM volunteers ORDER BY updatedAt DESC, id DESC');
+  res.json(rows);
+});
+
+app.post('/api/volunteers', requireAuth, async (req, res) => {
+  const fullName = String(req.body.fullName || '').trim();
+  const role = String(req.body.role || '').trim();
+  const skill = String(req.body.skill || '').trim();
+  const zone = String(req.body.zone || '').trim();
+
+  if (!fullName || !role || !skill || !zone) {
+    return res.status(400).json({ message: 'Full name, role, skill, and zone are required.' });
+  }
+
+  const volunteer = {
+    id: nowId(),
+    fullName,
+    role,
+    skill,
+    zone,
+    phone: String(req.body.phone || '').trim(),
+    status: String(req.body.status || 'Available').trim() || 'Available',
+    notes: String(req.body.notes || '').trim(),
+    updatedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  };
+
+  await run(
+    db,
+    'INSERT INTO volunteers (id, fullName, role, skill, zone, phone, status, notes, updatedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      volunteer.id,
+      volunteer.fullName,
+      volunteer.role,
+      volunteer.skill,
+      volunteer.zone,
+      volunteer.phone,
+      volunteer.status,
+      volunteer.notes,
+      volunteer.updatedAt,
+      volunteer.createdAt,
+    ]
+  );
+
+  await recordAudit(db, {
+    ...withActor(req),
+    action: 'VOLUNTEER_CREATE',
+    entityType: 'volunteer',
+    entityId: volunteer.id,
+    metadata: { role: volunteer.role, zone: volunteer.zone },
+  });
+
+  res.status(201).json(volunteer);
+});
+
+app.put('/api/volunteers/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  const existing = await get(db, 'SELECT * FROM volunteers WHERE id = ?', [id]);
+  if (!existing) return res.status(404).json({ message: 'Volunteer not found.' });
+
+  const updated = {
+    ...existing,
+    ...req.body,
+    id,
+    fullName: String(req.body.fullName ?? existing.fullName ?? '').trim(),
+    role: String(req.body.role ?? existing.role ?? '').trim(),
+    skill: String(req.body.skill ?? existing.skill ?? '').trim(),
+    zone: String(req.body.zone ?? existing.zone ?? '').trim(),
+    phone: String(req.body.phone ?? existing.phone ?? '').trim(),
+    status: String(req.body.status ?? existing.status ?? 'Available').trim() || 'Available',
+    notes: String(req.body.notes ?? existing.notes ?? '').trim(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (!updated.fullName || !updated.role || !updated.skill || !updated.zone) {
+    return res.status(400).json({ message: 'Full name, role, skill, and zone are required.' });
+  }
+
+  await run(
+    db,
+    'UPDATE volunteers SET fullName = ?, role = ?, skill = ?, zone = ?, phone = ?, status = ?, notes = ?, updatedAt = ? WHERE id = ?',
+    [updated.fullName, updated.role, updated.skill, updated.zone, updated.phone, updated.status, updated.notes, updated.updatedAt, id]
+  );
+
+  await recordAudit(db, {
+    ...withActor(req),
+    action: 'VOLUNTEER_UPDATE',
+    entityType: 'volunteer',
+    entityId: id,
+    metadata: { status: updated.status, zone: updated.zone },
+  });
+
+  res.json(updated);
+});
+
+app.delete('/api/volunteers/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  await run(db, 'DELETE FROM volunteers WHERE id = ?', [id]);
+
+  await recordAudit(db, {
+    ...withActor(req),
+    action: 'VOLUNTEER_DELETE',
+    entityType: 'volunteer',
+    entityId: id,
+  });
+
+  res.status(204).send();
+});
+
+app.get('/api/settings', requireAuth, async (req, res) => {
+  const settings = await readSettingsForUser(req.auth.userId);
+  res.json(settings);
+});
+
+app.put('/api/settings', requireAuth, async (req, res) => {
+  const incomingProfile = parseJsonObject(req.body.profile);
+  const incomingNotifications = parseJsonObject(req.body.notifications);
+  const incomingOperations = parseJsonObject(req.body.operations);
+
+  const existing = await readSettingsForUser(req.auth.userId);
+  const merged = {
+    profile: { ...existing.profile, ...incomingProfile },
+    notifications: { ...existing.notifications, ...incomingNotifications },
+    operations: { ...existing.operations, ...incomingOperations },
+  };
+
+  await run(
+    db,
+    `INSERT INTO user_settings (userId, profileJson, notificationsJson, operationsJson, updatedAt)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(userId) DO UPDATE SET
+       profileJson = excluded.profileJson,
+       notificationsJson = excluded.notificationsJson,
+       operationsJson = excluded.operationsJson,
+       updatedAt = excluded.updatedAt`,
+    [
+      req.auth.userId,
+      JSON.stringify(merged.profile),
+      JSON.stringify(merged.notifications),
+      JSON.stringify(merged.operations),
+      new Date().toISOString(),
+    ]
+  );
+
+  await recordAudit(db, {
+    ...withActor(req),
+    action: 'SETTINGS_UPDATE',
+    entityType: 'user_settings',
+    entityId: req.auth.userId,
+  });
+
+  res.json(merged);
 });
 
 app.get('/api/audit-logs', requireAuth, async (req, res) => {

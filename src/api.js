@@ -307,6 +307,12 @@ export const api = {
   getTrends: () => request("/api/trends"),
   getFeatureFlags: () => request("/api/feature-flags"),
   getAuditLogs: () => request("/api/audit-logs"),
+  getVolunteers: () => request("/api/volunteers"),
+  createVolunteer: (payload) => request("/api/volunteers", { method: "POST", body: JSON.stringify(payload) }),
+  updateVolunteer: (id, payload) => request(`/api/volunteers/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteVolunteer: (id) => request(`/api/volunteers/${id}`, { method: "DELETE" }),
+  getSettings: () => request("/api/settings"),
+  updateSettings: (payload) => request("/api/settings", { method: "PUT", body: JSON.stringify(payload) }),
   geocode: (query) => request(`/api/geocode?q=${encodeURIComponent(query)}`),
 };
 

@@ -12,6 +12,7 @@ const NAV = [
     { icon: '🗺️', label: 'Hazard Zoning', page: 'hazard' },
     { icon: '🧾', label: 'Audit Logs', page: 'audit' },
     { icon: '👥', label: 'Volunteers', page: 'volunteers' },
+    { icon: '⚙️', label: 'Settings', page: 'settings' },
   ]},
 ];
 

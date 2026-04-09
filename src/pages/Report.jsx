@@ -383,7 +383,7 @@ export default function Report({ page, onNav, currentUser, onLogout, featureFlag
             </div>
           ))}
           {viewTarget.info && (
-            <div style={{ marginTop: 14, padding: 14, background: 'var(--bg-raised)', borderRadius: 'var(--radius-sm)', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            <div style={{ marginTop: 14, padding: 14, background: 'rgba(255,255,255,.18)', borderRadius: 'var(--radius-sm)', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, border: '1px solid rgba(255,255,255,.24)', WebkitBackdropFilter: 'blur(12px)', backdropFilter: 'blur(12px)' }}>
               {viewTarget.info}
             </div>
           )}

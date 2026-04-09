@@ -90,7 +90,7 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
                 </div>
 
                 {selectedResource && (
-                  <div style={{background:'var(--bg-raised)',borderRadius:'var(--radius-sm)',padding:'10px 13px',marginBottom:14,fontSize:12,color:'var(--text-secondary)',border:'1px solid var(--border)'}}>
+                  <div style={{background:'rgba(255,255,255,.18)',borderRadius:'var(--radius-sm)',padding:'10px 13px',marginBottom:14,fontSize:12,color:'var(--text-secondary)',border:'1px solid rgba(255,255,255,.24)',WebkitBackdropFilter:'blur(12px)',backdropFilter:'blur(12px)'}}>
                     📦 {selectedResource.category} · 📍 {selectedResource.location} · <strong style={{color:'var(--text-primary)'}}>{selectedResource.qty} units available</strong>
                   </div>
                 )}
@@ -125,7 +125,7 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
                   <button className="btn btn-ghost btn-sm" onClick={() => onNav('inventory')}>Manage →</button>
                 </div>
                 {availableResources.slice(0, 5).map(r => (
-                  <div key={r.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid var(--border)',fontSize:13}}>
+                  <div key={r.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid rgba(255,255,255,.16)',fontSize:13}}>
                     <div>
                       <div style={{fontWeight:600,marginBottom:2}}>{r.name}</div>
                       <div style={{fontSize:11,color:'var(--text-secondary)'}}>{r.location}</div>
@@ -150,7 +150,7 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
                   { label: 'Total Stock', val: totalStock.toLocaleString(), color: 'var(--blue)', sub: `${resources.length} resource types` },
                   { label: 'Critical Low', val: lowCount, color: lowCount > 0 ? 'var(--red)' : 'var(--green)', sub: lowCount > 0 ? 'Needs restocking' : 'All levels OK' },
                 ].map(s => (
-                  <div key={s.label} style={{background:'var(--bg-base)',borderRadius:8,padding:'12px 14px',marginBottom:10,border:'1px solid var(--border)'}}>
+                  <div key={s.label} style={{background:'rgba(255,255,255,.18)',borderRadius:12,padding:'12px 14px',marginBottom:10,border:'1px solid rgba(255,255,255,.24)',WebkitBackdropFilter:'blur(12px)',backdropFilter:'blur(12px)'}}>
                     <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:4,textTransform:'uppercase',letterSpacing:'.08em'}}>{s.label}</div>
                     <div style={{fontFamily:'var(--font-d)',fontSize:28,fontWeight:700,color:s.color,lineHeight:1}}>{s.val}</div>
                     <div style={{fontSize:11,color:'var(--text-secondary)',marginTop:3}}>{s.sub}</div>

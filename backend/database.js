@@ -14,6 +14,7 @@ const EMPTY_DATA = {
   allocations: [],
   otsTasks: [],
   hazardZones: [],
+  volunteers: [],
 };
 
 function nowId() {
@@ -160,6 +161,33 @@ async function createSchema(db) {
 
   await run(
     db,
+    `CREATE TABLE IF NOT EXISTS volunteers (
+      id INTEGER PRIMARY KEY,
+      fullName TEXT NOT NULL,
+      role TEXT NOT NULL,
+      skill TEXT NOT NULL,
+      zone TEXT NOT NULL,
+      phone TEXT,
+      status TEXT NOT NULL DEFAULT 'Available',
+      notes TEXT,
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    )`
+  );
+
+  await run(
+    db,
+    `CREATE TABLE IF NOT EXISTS user_settings (
+      userId INTEGER PRIMARY KEY,
+      profileJson TEXT,
+      notificationsJson TEXT,
+      operationsJson TEXT,
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+    )`
+  );
+
+  await run(
+    db,
     `CREATE TABLE IF NOT EXISTS refresh_tokens (
       id INTEGER PRIMARY KEY,
       userId INTEGER NOT NULL,
@@ -188,121 +216,174 @@ async function seedFromLegacyIfNeeded(db) {
   if (process.env.DRAMS_DISABLE_LEGACY_SEED === 'true') return;
 
   const existing = await get(db, 'SELECT COUNT(*) AS count FROM users');
-  if (existing && Number(existing.count) > 0) return;
+  if (!existing || Number(existing.count) === 0) {
+    const legacy = loadLegacyData();
 
-  const legacy = loadLegacyData();
+    for (const user of legacy.users || []) {
+      await run(
+        db,
+        'INSERT INTO users (id, fullName, username, email, password, role, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [
+          user.id || nowId(),
+          user.fullName || '',
+          user.username || '',
+          user.email || '',
+          user.password || '',
+          user.role || 'Operator',
+          user.createdAt || new Date().toISOString(),
+        ]
+      );
+    }
 
-  for (const user of legacy.users || []) {
-    await run(
-      db,
-      'INSERT INTO users (id, fullName, username, email, password, role, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [
-        user.id || nowId(),
-        user.fullName || '',
-        user.username || '',
-        user.email || '',
-        user.password || '',
-        user.role || 'Operator',
-        user.createdAt || new Date().toISOString(),
-      ]
-    );
+    for (const resource of legacy.resources || []) {
+      const normalized = normalizeResource(resource);
+      await run(
+        db,
+        'INSERT INTO resources (id, name, category, qty, location, notes, status, assignedTo, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          normalized.id || nowId(),
+          normalized.name || '',
+          normalized.category || 'Other',
+          normalized.qty,
+          normalized.location || 'Main Depot',
+          normalized.notes || '',
+          normalized.status,
+          normalized.assignedTo || '',
+          resource.createdAt || new Date().toISOString(),
+        ]
+      );
+    }
+
+    for (const disaster of legacy.disasters || []) {
+      await run(
+        db,
+        'INSERT INTO disasters (id, type, severity, location, people, time, info, coordinates, status, reportedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          disaster.id || nowId(),
+          disaster.type || 'Other',
+          disaster.severity || 'Low',
+          disaster.location || '',
+          Number(disaster.people) || 0,
+          disaster.time || '',
+          disaster.info || '',
+          disaster.coordinates || '',
+          disaster.status || 'Active',
+          disaster.reportedBy || 'System',
+          disaster.createdAt || new Date().toISOString(),
+        ]
+      );
+    }
+
+    for (const allocation of legacy.allocations || []) {
+      await run(
+        db,
+        'INSERT INTO allocations (id, icon, action, detail, area, resourceId, qty, volunteer, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          allocation.id || nowId(),
+          allocation.icon || '📦',
+          allocation.action || '',
+          allocation.detail || '',
+          allocation.area || '',
+          allocation.resourceId || null,
+          Number(allocation.qty) || 0,
+          allocation.volunteer || '',
+          allocation.createdAt || new Date().toISOString(),
+        ]
+      );
+    }
+
+    for (const task of legacy.otsTasks || []) {
+      await run(
+        db,
+        'INSERT INTO ots_tasks (id, title, incidentId, zone, priority, owner, eta, status, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          task.id || nowId(),
+          task.title || '',
+          task.incidentId || null,
+          task.zone || '',
+          task.priority || 'Moderate',
+          task.owner || '',
+          task.eta || '',
+          task.status || 'Queued',
+          task.notes || '',
+          task.createdAt || new Date().toISOString(),
+        ]
+      );
+    }
+
+    for (const zone of legacy.hazardZones || []) {
+      await run(
+        db,
+        'INSERT INTO hazard_zones (id, name, region, hazardType, riskLevel, status, population, evacuationPriority, coordinates, lastInspection, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          zone.id || nowId(),
+          zone.name || '',
+          zone.region || '',
+          zone.hazardType || 'Other',
+          zone.riskLevel || 'Low',
+          zone.status || 'Monitoring',
+          Number(zone.population) || 0,
+          zone.evacuationPriority || 'P2',
+          zone.coordinates || '',
+          zone.lastInspection || '',
+          zone.notes || '',
+          zone.createdAt || new Date().toISOString(),
+        ]
+      );
+    }
   }
 
-  for (const resource of legacy.resources || []) {
-    const normalized = normalizeResource(resource);
-    await run(
-      db,
-      'INSERT INTO resources (id, name, category, qty, location, notes, status, assignedTo, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        normalized.id || nowId(),
-        normalized.name || '',
-        normalized.category || 'Other',
-        normalized.qty,
-        normalized.location || 'Main Depot',
-        normalized.notes || '',
-        normalized.status,
-        normalized.assignedTo || '',
-        resource.createdAt || new Date().toISOString(),
-      ]
-    );
-  }
+  const volunteersCount = await get(db, 'SELECT COUNT(*) AS count FROM volunteers');
+  if (!volunteersCount || Number(volunteersCount.count) === 0) {
+    const samples = [
+      {
+        fullName: 'Priya Sharma',
+        role: 'Field Medic',
+        skill: 'Advanced First Aid',
+        zone: 'Zone A - Riverside',
+        phone: '+91 98765 10101',
+        status: 'Available',
+        notes: 'Certified trauma response lead',
+      },
+      {
+        fullName: 'Rohit Verma',
+        role: 'Rescue Operator',
+        skill: 'Urban Search and Rescue',
+        zone: 'Zone C - Downtown',
+        phone: '+91 98765 20202',
+        status: 'On Mission',
+        notes: 'Night shift qualified',
+      },
+      {
+        fullName: 'Ananya Iyer',
+        role: 'Logistics Lead',
+        skill: 'Supply Chain Coordination',
+        zone: 'Zone E - Industrial',
+        phone: '+91 98765 30303',
+        status: 'Standby',
+        notes: 'Can deploy within 30 mins',
+      },
+    ];
 
-  for (const disaster of legacy.disasters || []) {
-    await run(
-      db,
-      'INSERT INTO disasters (id, type, severity, location, people, time, info, coordinates, status, reportedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        disaster.id || nowId(),
-        disaster.type || 'Other',
-        disaster.severity || 'Low',
-        disaster.location || '',
-        Number(disaster.people) || 0,
-        disaster.time || '',
-        disaster.info || '',
-        disaster.coordinates || '',
-        disaster.status || 'Active',
-        disaster.reportedBy || 'System',
-        disaster.createdAt || new Date().toISOString(),
-      ]
-    );
-  }
-
-  for (const allocation of legacy.allocations || []) {
-    await run(
-      db,
-      'INSERT INTO allocations (id, icon, action, detail, area, resourceId, qty, volunteer, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        allocation.id || nowId(),
-        allocation.icon || '📦',
-        allocation.action || '',
-        allocation.detail || '',
-        allocation.area || '',
-        allocation.resourceId || null,
-        Number(allocation.qty) || 0,
-        allocation.volunteer || '',
-        allocation.createdAt || new Date().toISOString(),
-      ]
-    );
-  }
-
-  for (const task of legacy.otsTasks || []) {
-    await run(
-      db,
-      'INSERT INTO ots_tasks (id, title, incidentId, zone, priority, owner, eta, status, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        task.id || nowId(),
-        task.title || '',
-        task.incidentId || null,
-        task.zone || '',
-        task.priority || 'Moderate',
-        task.owner || '',
-        task.eta || '',
-        task.status || 'Queued',
-        task.notes || '',
-        task.createdAt || new Date().toISOString(),
-      ]
-    );
-  }
-
-  for (const zone of legacy.hazardZones || []) {
-    await run(
-      db,
-      'INSERT INTO hazard_zones (id, name, region, hazardType, riskLevel, status, population, evacuationPriority, coordinates, lastInspection, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        zone.id || nowId(),
-        zone.name || '',
-        zone.region || '',
-        zone.hazardType || 'Other',
-        zone.riskLevel || 'Low',
-        zone.status || 'Monitoring',
-        Number(zone.population) || 0,
-        zone.evacuationPriority || 'P2',
-        zone.coordinates || '',
-        zone.lastInspection || '',
-        zone.notes || '',
-        zone.createdAt || new Date().toISOString(),
-      ]
-    );
+    for (const volunteer of samples) {
+      const timestamp = new Date().toISOString();
+      await run(
+        db,
+        'INSERT INTO volunteers (id, fullName, role, skill, zone, phone, status, notes, updatedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          nowId(),
+          volunteer.fullName,
+          volunteer.role,
+          volunteer.skill,
+          volunteer.zone,
+          volunteer.phone,
+          volunteer.status,
+          volunteer.notes,
+          timestamp,
+          timestamp,
+        ]
+      );
+    }
   }
 }
 

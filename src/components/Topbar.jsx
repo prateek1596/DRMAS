@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Topbar({ title, subtitle, actions, currentUser, onLogout }) {
+  const navigate = useNavigate();
   const [notice, setNotice] = React.useState('');
 
   return (
@@ -20,7 +22,7 @@ export default function Topbar({ title, subtitle, actions, currentUser, onLogout
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Operator Console</span>
         </div>
         <button className="icon-btn" onClick={() => setNotice('No new alerts. All systems are synced.')}>🔔</button>
-        <button className="icon-btn" onClick={() => setNotice('Settings panel coming next: notifications, profile and API preferences.')}>⚙️</button>
+        <button className="icon-btn" onClick={() => navigate('/settings')}>⚙️</button>
         {onLogout && <button className="btn btn-ghost btn-sm" onClick={onLogout}>Logout</button>}
         {actions}
       </div>

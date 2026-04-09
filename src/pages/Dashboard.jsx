@@ -6,7 +6,7 @@ import { useStore } from '../store';
 import { api } from '../api';
 
 export default function Dashboard({ page, onNav, currentUser, onLogout, featureFlags }) {
-  const { resources, disasters, otsTasks, hazardZones, loading, error } = useStore();
+  const { resources, disasters, allocations, otsTasks, hazardZones, loading, error } = useStore();
   const [trends, setTrends] = useState({ incidentsByDay: [], allocationsByDay: [], stockByCategory: [] });
 
   const critical = resources.filter(r => r.status === 'Low').length;
@@ -14,6 +14,17 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
   const available = resources.reduce((s, r) => s + Number(r.qty), 0);
   const blockedOts = otsTasks.filter(t => t.status === 'Blocked').length;
   const criticalHazardZones = hazardZones.filter(z => z.riskLevel === 'Critical').length;
+  const assignedCount = resources.filter((r) => r.status === 'Assigned').length;
+  const deploymentRate = resources.length ? Math.round((assignedCount / resources.length) * 100) : 0;
+  const readinessScore = Math.max(0, Math.min(100, 100 - activeDisasters * 9 - critical * 6 - blockedOts * 8));
+  const last24hAllocations = allocations.filter((item) => {
+    const stamp = new Date(item.createdAt || 0).getTime();
+    if (!Number.isFinite(stamp) || stamp <= 0) return false;
+    return Date.now() - stamp <= 24 * 60 * 60 * 1000;
+  });
+  const topRiskZones = [...hazardZones]
+    .sort((a, b) => Number(b.population || 0) - Number(a.population || 0))
+    .slice(0, 3);
 
   const recentDisasters = [...disasters].reverse().slice(0, 4);
 
@@ -61,22 +72,55 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
           {/* Stats */}
           <div className="grid-3 mb-4 anim-1">
             <div className="stat-card">
-              <div className="stat-glow" style={{background:'rgba(255,61,85,.25)'}} />
+              <div className="stat-glow" style={{background:'rgba(221,76,111,.24)'}} />
               <div className="stat-label">⚠️ Total Disasters</div>
               <div className="stat-value" style={{color:'var(--red)'}}>{disasters.length}</div>
               <div className="stat-delta">{activeDisasters} active incidents</div>
             </div>
             <div className="stat-card">
-              <div className="stat-glow" style={{background:'rgba(79,110,255,.25)'}} />
+              <div className="stat-glow" style={{background:'rgba(15,143,149,.25)'}} />
               <div className="stat-label">📦 Resources Available</div>
               <div className="stat-value" style={{color:'var(--blue)'}}>{available.toLocaleString()}</div>
               <div className="stat-delta">{critical} items critically low</div>
             </div>
             <div className="stat-card">
-              <div className="stat-glow" style={{background:'rgba(16,232,122,.25)'}} />
+              <div className="stat-glow" style={{background:'rgba(47,154,99,.24)'}} />
               <div className="stat-label">🛰️ OTS / Hazard Alerts</div>
               <div className="stat-value" style={{color:'var(--green)'}}>{blockedOts + criticalHazardZones}</div>
               <div className="stat-delta">{blockedOts} blocked tasks · {criticalHazardZones} critical zones</div>
+            </div>
+          </div>
+
+          <div className="widget-grid mb-4 anim-2">
+            <div className="widget">
+              <div className="widget-kicker">Readiness Score</div>
+              <div className="widget-value">{readinessScore}%</div>
+              <div className="widget-sub">Composite signal from incidents, low stock, and blocked operations.</div>
+              <div className="widget-meter"><span style={{ width: `${Math.max(6, readinessScore)}%` }} /></div>
+            </div>
+            <div className="widget">
+              <div className="widget-kicker">Deployment Rate</div>
+              <div className="widget-value">{deploymentRate}%</div>
+              <div className="widget-sub">{assignedCount} of {resources.length || 0} resource lines currently assigned.</div>
+              <div className="widget-meter"><span style={{ width: `${Math.max(6, deploymentRate)}%`, background: 'linear-gradient(90deg,var(--green),var(--cyan))' }} /></div>
+            </div>
+            <div className="widget">
+              <div className="widget-kicker">24h Allocation Tempo</div>
+              <div className="widget-value">{last24hAllocations.length}</div>
+              <div className="widget-sub">{new Set(last24hAllocations.map((a) => a.volunteer).filter(Boolean)).size} active leads in last 24 hours.</div>
+              <div className="widget-meter"><span style={{ width: `${Math.min(100, Math.max(8, last24hAllocations.length * 12))}%`, background: 'linear-gradient(90deg,var(--orange),var(--yellow))' }} /></div>
+            </div>
+            <div className="widget">
+              <div className="widget-kicker">Top Risk Zones</div>
+              <div className="widget-list">
+                {topRiskZones.map((zone) => (
+                  <div className="widget-list-item" key={zone.id}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><span className="widget-dot" />{zone.name}</span>
+                    <strong>{Number(zone.population || 0).toLocaleString()}</strong>
+                  </div>
+                ))}
+                {topRiskZones.length === 0 && <div className="widget-sub">No hazard zones recorded.</div>}
+              </div>
             </div>
           </div>
 
@@ -147,7 +191,7 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
                       const height = Math.max(8, item.value * 18);
                       return (
                         <div key={item.day} title={`${item.day}: ${item.value}`} style={{ flex: 1, textAlign: 'center' }}>
-                          <div style={{ height, borderRadius: 8, background: 'linear-gradient(180deg, var(--red), rgba(255,61,85,.45))' }} />
+                          <div style={{ height, borderRadius: 8, background: 'linear-gradient(180deg, var(--red), rgba(221,76,111,.45))' }} />
                           <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-muted)' }}>{item.day.slice(5)}</div>
                         </div>
                       );
@@ -161,7 +205,7 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
                       const height = Math.max(8, Math.min(120, item.value * 6));
                       return (
                         <div key={item.day} title={`${item.day}: ${item.value}`} style={{ flex: 1, textAlign: 'center' }}>
-                          <div style={{ height, borderRadius: 8, background: 'linear-gradient(180deg, var(--blue), rgba(79,110,255,.45))' }} />
+                          <div style={{ height, borderRadius: 8, background: 'linear-gradient(180deg, var(--blue), rgba(15,143,149,.45))' }} />
                           <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-muted)' }}>{item.day.slice(5)}</div>
                         </div>
                       );
