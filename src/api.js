@@ -128,6 +128,8 @@ async function refreshAccessToken() {
 async function request(path, options = {}, retryOnAuth = true) {
   const method = (options.method || "GET").toUpperCase();
   const shouldQueueOnOffline = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+  const authBypassPaths = ["/api/auth/login", "/api/auth/register", "/api/auth/refresh"];
+  const canRetryOnAuth = retryOnAuth && !authBypassPaths.includes(path);
 
   const doRequest = async () => {
     if (typeof navigator !== "undefined" && !navigator.onLine && shouldQueueOnOffline) {
@@ -156,7 +158,7 @@ async function request(path, options = {}, retryOnAuth = true) {
 
     const payload = await response.json().catch(() => ({}));
 
-    if (response.status === 401 && retryOnAuth) {
+    if (response.status === 401 && canRetryOnAuth) {
       try {
         await refreshAccessToken();
       } catch {
@@ -215,7 +217,7 @@ export async function login(payload) {
   const data = await request("/api/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
-  });
+  }, false);
 
   saveSession({ token: data.accessToken, refresh: data.refreshToken, user: data.user });
   return data.user;
@@ -225,7 +227,7 @@ export async function register(payload) {
   const data = await request("/api/auth/register", {
     method: "POST",
     body: JSON.stringify(payload),
-  });
+  }, false);
 
   return data;
 }

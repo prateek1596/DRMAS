@@ -25,6 +25,25 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
   const topRiskZones = [...hazardZones]
     .sort((a, b) => Number(b.population || 0) - Number(a.population || 0))
     .slice(0, 3);
+  const priorityIncidents = [...disasters]
+    .sort((a, b) => {
+      const rank = { Critical: 4, High: 3, Moderate: 2, Low: 1 };
+      return (rank[b.severity] || 0) - (rank[a.severity] || 0);
+    })
+    .slice(0, 4);
+  const resourcesByLocation = Object.entries(
+    resources.reduce((acc, item) => {
+      const loc = item.location || 'Unassigned';
+      const qty = Number(item.qty || 0);
+      if (!acc[loc]) acc[loc] = { location: loc, qty: 0, low: 0 };
+      acc[loc].qty += qty;
+      if (item.status === 'Low') acc[loc].low += 1;
+      return acc;
+    }, {})
+  )
+    .map(([, entry]) => entry)
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 4);
 
   const recentDisasters = [...disasters].reverse().slice(0, 4);
 
@@ -136,7 +155,62 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
             </div>
           </div>
 
-          <div className="grid-2 anim-3">
+          <div className="grid-2 anim-3 mb-3">
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Operational Briefing</span>
+                <span className="badge badge-blue">Live</span>
+              </div>
+              <div className="brief-list">
+                {priorityIncidents.map((item) => (
+                  <div className="brief-item" key={item.id}>
+                    <div>
+                      <div className="activity-title">{item.type} at {item.location}</div>
+                      <div className="brief-meta">{item.people?.toLocaleString() || 0} impacted · {item.status}</div>
+                    </div>
+                    <span className={`badge ${severityClass(item.severity)}`}>{item.severity}</span>
+                  </div>
+                ))}
+                {priorityIncidents.length === 0 && <div className="widget-sub">No active incidents to brief.</div>}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Field Coordination Snapshot</span>
+              </div>
+              <div className="mini-kpi-row mb-2">
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Open Tasks</div>
+                  <div className="mini-kpi-value">{otsTasks.filter((task) => task.status !== 'Done').length}</div>
+                </div>
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Resource Transfers</div>
+                  <div className="mini-kpi-value">{allocations.length}</div>
+                </div>
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Critical Zones</div>
+                  <div className="mini-kpi-value">{criticalHazardZones}</div>
+                </div>
+              </div>
+              <div className="brief-list">
+                {resourcesByLocation.map((entry) => (
+                  <div className="brief-item" key={entry.location}>
+                    <div>
+                      <div className="activity-title">{entry.location}</div>
+                      <div className="brief-meta">{entry.qty.toLocaleString()} units staged</div>
+                    </div>
+                    <span className={`badge ${entry.low > 0 ? 'badge-red' : 'badge-green'}`}>
+                      {entry.low > 0 ? `${entry.low} low` : 'Stable'}
+                    </span>
+                  </div>
+                ))}
+                {resourcesByLocation.length === 0 && <div className="widget-sub">No location-level resource data yet.</div>}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid-2 anim-4">
             {/* Recent disasters */}
             <div className="card">
               <div className="card-header">
