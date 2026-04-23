@@ -45,6 +45,16 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
 
   const totalStock = resources.reduce((s, r) => s + Number(r.qty), 0);
   const lowCount = resources.filter(r => r.status === 'Low').length;
+  const assignedCount = resources.filter(r => r.status === 'Assigned').length;
+  const allocationCoverage = resources.length ? Math.round((assignedCount / resources.length) * 100) : 0;
+  const dispatchReady = resources.filter((r) => r.status !== 'Low' && Number(r.qty) > 0).length;
+  const pressureZones = ZONES.map((zone) => ({
+    zone,
+    count: allocations.filter((entry) => entry.area === zone).length,
+  }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 4);
+  const recentAllocations = [...allocations].slice(0, 5);
 
   return (
     <div className="app-shell">
@@ -118,6 +128,41 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
                 </p>
               </div>
 
+              <div className="card mb-3">
+                <div className="card-header">
+                  <span className="card-title">Allocation Intelligence</span>
+                  <span className="badge badge-blue">Live</span>
+                </div>
+                <div className="mini-kpi-row mb-2">
+                  <div className="mini-kpi">
+                    <div className="mini-kpi-label">Coverage</div>
+                    <div className="mini-kpi-value">{allocationCoverage}%</div>
+                  </div>
+                  <div className="mini-kpi">
+                    <div className="mini-kpi-label">Ready Lines</div>
+                    <div className="mini-kpi-value">{dispatchReady}</div>
+                  </div>
+                  <div className="mini-kpi">
+                    <div className="mini-kpi-label">Low Stock</div>
+                    <div className="mini-kpi-value">{lowCount}</div>
+                  </div>
+                </div>
+                <div className="brief-list">
+                  {pressureZones.map((entry) => (
+                    <div className="brief-item" key={entry.zone}>
+                      <div>
+                        <div className="activity-title">{entry.zone}</div>
+                        <div className="brief-meta">{entry.count} recorded allocations</div>
+                      </div>
+                      <span className={`badge ${entry.count > 2 ? 'badge-orange' : 'badge-green'}`}>
+                        {entry.count > 2 ? 'Hot zone' : 'Clear'}
+                      </span>
+                    </div>
+                  ))}
+                  {pressureZones.length === 0 && <div className="widget-sub">No allocation pressure data yet.</div>}
+                </div>
+              </div>
+
               {/* Current inventory snapshot */}
               <div className="card">
                 <div className="card-header">
@@ -175,6 +220,25 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
                     </div>
                   );
                 })}
+              </div>
+
+              <div className="card mb-3">
+                <div className="card-header">
+                  <span className="card-title">Dispatch Preview</span>
+                  <button className="btn btn-ghost btn-sm" onClick={() => onNav('report')}>Open Incidents</button>
+                </div>
+                <div className="brief-list">
+                  {recentAllocations.map((item) => (
+                    <div className="brief-item" key={item.id}>
+                      <div>
+                        <div className="activity-title">{item.action || 'Allocation record'}</div>
+                        <div className="brief-meta">{item.detail || item.area || 'No details'}</div>
+                      </div>
+                      <span className="badge badge-blue">Queued</span>
+                    </div>
+                  ))}
+                  {recentAllocations.length === 0 && <div className="widget-sub">No allocation history yet.</div>}
+                </div>
               </div>
 
               <div className="card">

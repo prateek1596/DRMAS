@@ -117,6 +117,15 @@ export default function Ots({ page, onNav, currentUser, onLogout, featureFlags }
   const queued = otsTasks.filter((task) => task.status === 'Queued').length;
   const inProgress = otsTasks.filter((task) => task.status === 'In Progress').length;
   const blocked = otsTasks.filter((task) => task.status === 'Blocked').length;
+  const completed = otsTasks.filter((task) => task.status === 'Completed').length;
+  const criticalQueue = [...otsTasks]
+    .sort((a, b) => {
+      const rank = { Critical: 4, High: 3, Moderate: 2, Low: 1 };
+      return (rank[b.priority] || 0) - (rank[a.priority] || 0);
+    })
+    .slice(0, 5);
+  const linkedIncidents = disasters.filter((item) => otsTasks.some((task) => String(task.incidentId) === String(item.id))).slice(0, 4);
+  const missionLoad = otsTasks.length ? Math.round(((inProgress + blocked) / otsTasks.length) * 100) : 0;
 
   const openEdit = (task) => {
     setEditTarget(task);
@@ -241,7 +250,64 @@ export default function Ots({ page, onNav, currentUser, onLogout, featureFlags }
             </div>
           </div>
 
-          <div className="card anim-2">
+          <div className="grid-2 mb-4 anim-2">
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Command Snapshot</span>
+                <span className="badge badge-blue">Operational</span>
+              </div>
+              <div className="mini-kpi-row mb-2">
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Mission Load</div>
+                  <div className="mini-kpi-value">{missionLoad}%</div>
+                </div>
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Completed</div>
+                  <div className="mini-kpi-value">{completed}</div>
+                </div>
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Linked Incidents</div>
+                  <div className="mini-kpi-value">{linkedIncidents.length}</div>
+                </div>
+              </div>
+              <div className="brief-list">
+                {linkedIncidents.map((incident) => (
+                  <div className="brief-item" key={`linked-${incident.id}`}>
+                    <div>
+                      <div className="activity-title">{incident.type}</div>
+                      <div className="brief-meta">{incident.location} · {incident.status}</div>
+                    </div>
+                    <span className={`badge ${statusBadge(incident.status)}`}>{incident.severity || 'Linked'}</span>
+                  </div>
+                ))}
+                {linkedIncidents.length === 0 && <div className="widget-sub">No incidents linked to tasks yet.</div>}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Priority Task Queue</span>
+                <button className="btn btn-ghost btn-sm" onClick={() => setSearch('')}>Reset Search</button>
+              </div>
+              <div className="brief-list">
+                {criticalQueue.map((task) => (
+                  <div className="brief-item" key={`queue-${task.id}`}>
+                    <div>
+                      <div className="activity-title">{task.title}</div>
+                      <div className="brief-meta">{task.zone} · {task.owner || 'Unassigned'}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className={`badge ${priorityBadge(task.priority)}`}>{task.priority}</span>
+                      <button className="btn btn-outline btn-sm" onClick={() => openEdit(task)}>Review</button>
+                    </div>
+                  </div>
+                ))}
+                {criticalQueue.length === 0 && <div className="widget-sub">No tasks in the queue.</div>}
+              </div>
+            </div>
+          </div>
+
+          <div className="card anim-3">
             <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
               <span className="card-title">Operational Tasks ({otsTasks.length})</span>
               <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
