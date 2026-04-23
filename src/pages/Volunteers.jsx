@@ -94,6 +94,17 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
   )
     .sort((a, b) => b[1] - a[1])
     .slice(0, 4);
+  const topDeployable = [...volunteers]
+    .filter((item) => item.status === 'Available')
+    .sort((a, b) => {
+      const bySkill = String(a.skill || '').localeCompare(String(b.skill || ''));
+      if (bySkill !== 0) return bySkill;
+      return String(a.fullName || '').localeCompare(String(b.fullName || ''));
+    })
+    .slice(0, 5);
+  const missionQueue = [...volunteers]
+    .filter((item) => item.status === 'On Mission')
+    .slice(0, 5);
 
   const setField = (key) => (event) => {
     setForm((prev) => ({ ...prev, [key]: event.target.value }));
@@ -286,7 +297,64 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
                 </div>
               </div>
 
-              <div className="card anim-2">
+              <div className="grid-2 mb-4 anim-2">
+                <div className="card">
+                  <div className="card-header">
+                    <span className="card-title">Deployment Planning Board</span>
+                    <span className="badge badge-blue">Shift Ready</span>
+                  </div>
+                  <div className="mini-kpi-row mb-2">
+                    <div className="mini-kpi">
+                      <div className="mini-kpi-label">Available</div>
+                      <div className="mini-kpi-value">{available}</div>
+                    </div>
+                    <div className="mini-kpi">
+                      <div className="mini-kpi-label">On Mission</div>
+                      <div className="mini-kpi-value">{onMission}</div>
+                    </div>
+                    <div className="mini-kpi">
+                      <div className="mini-kpi-label">Standby</div>
+                      <div className="mini-kpi-value">{standby}</div>
+                    </div>
+                  </div>
+                  <div className="brief-list">
+                    {topDeployable.map((item) => (
+                      <div className="brief-item" key={item.id}>
+                        <div>
+                          <div className="activity-title">{item.fullName}</div>
+                          <div className="brief-meta">{item.skill} · {item.zone}</div>
+                        </div>
+                        <span className="badge badge-green">Deployable</span>
+                      </div>
+                    ))}
+                    {topDeployable.length === 0 && <div className="widget-sub">No available responders right now.</div>}
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div className="card-header">
+                    <span className="card-title">Mission Queue Snapshot</span>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setStatusFilter('On Mission')}>Filter On Mission</button>
+                  </div>
+                  <div className="brief-list">
+                    {missionQueue.map((item) => (
+                      <div className="brief-item" key={`mission-${item.id}`}>
+                        <div>
+                          <div className="activity-title">{item.fullName}</div>
+                          <div className="brief-meta">{item.role} · {item.zone}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="btn btn-outline btn-sm" onClick={() => openEdit(item)}>Update</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => cycleStatus(item)}>Cycle</button>
+                        </div>
+                      </div>
+                    ))}
+                    {missionQueue.length === 0 && <div className="widget-sub">No active mission queue.</div>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="card anim-3">
                 <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
                   <span className="card-title">Responder Roster ({filtered.length})</span>
                   <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>

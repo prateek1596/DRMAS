@@ -152,6 +152,23 @@ export default function HazardZoning({ page, onNav, currentUser, onLogout, featu
   const critical = hazardZones.filter((zone) => zone.riskLevel === 'Critical').length;
   const restricted = hazardZones.filter((zone) => zone.status === 'Restricted' || zone.status === 'Evacuation').length;
   const riskPopulation = hazardZones.reduce((sum, zone) => sum + Number(zone.population || 0), 0);
+  const regionPressure = Object.entries(
+    hazardZones.reduce((acc, zone) => {
+      const key = zone.region || 'Unassigned';
+      if (!acc[key]) acc[key] = { region: key, population: 0, critical: 0 };
+      acc[key].population += Number(zone.population || 0);
+      if (zone.riskLevel === 'Critical') acc[key].critical += 1;
+      return acc;
+    }, {})
+  )
+    .map(([, value]) => value)
+    .sort((a, b) => b.population - a.population)
+    .slice(0, 5);
+  const evacuationQueue = [...hazardZones]
+    .filter((zone) => zone.status === 'Evacuation' || zone.riskLevel === 'Critical')
+    .sort((a, b) => Number(b.population || 0) - Number(a.population || 0))
+    .slice(0, 5);
+  const stabilized = hazardZones.filter((zone) => zone.status === 'Stabilized').length;
 
   const openEdit = (zone) => {
     setEditTarget(zone);
@@ -306,7 +323,66 @@ export default function HazardZoning({ page, onNav, currentUser, onLogout, featu
             </div>
           </div>
 
-          <div className="card anim-2 mb-4">
+          <div className="grid-2 mb-4 anim-2">
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Regional Risk Pressure</span>
+                <span className="badge badge-blue">Auto Ranked</span>
+              </div>
+              <div className="mini-kpi-row mb-2">
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Restricted/Evac</div>
+                  <div className="mini-kpi-value">{restricted}</div>
+                </div>
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Stabilized</div>
+                  <div className="mini-kpi-value">{stabilized}</div>
+                </div>
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Critical</div>
+                  <div className="mini-kpi-value">{critical}</div>
+                </div>
+              </div>
+              <div className="brief-list">
+                {regionPressure.map((entry) => (
+                  <div className="brief-item" key={entry.region}>
+                    <div>
+                      <div className="activity-title">{entry.region}</div>
+                      <div className="brief-meta">{entry.population.toLocaleString()} people exposed</div>
+                    </div>
+                    <span className={`badge ${entry.critical > 0 ? 'badge-red' : 'badge-green'}`}>
+                      {entry.critical > 0 ? `${entry.critical} critical` : 'Stable'}
+                    </span>
+                  </div>
+                ))}
+                {regionPressure.length === 0 && <div className="widget-sub">No regional pressure data yet.</div>}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Evacuation Priority Queue</span>
+                <button className="btn btn-ghost btn-sm" onClick={() => setSearch('')}>Reset Filters</button>
+              </div>
+              <div className="brief-list">
+                {evacuationQueue.map((zone) => (
+                  <div className="brief-item" key={`evac-${zone.id}`}>
+                    <div>
+                      <div className="activity-title">{zone.name}</div>
+                      <div className="brief-meta">{zone.region} · {Number(zone.population || 0).toLocaleString()} people</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className={`badge ${riskBadge(zone.riskLevel)}`}>{zone.riskLevel}</span>
+                      <button className="btn btn-outline btn-sm" onClick={() => openEdit(zone)}>Review</button>
+                    </div>
+                  </div>
+                ))}
+                {evacuationQueue.length === 0 && <div className="widget-sub">No zones currently queued for evacuation.</div>}
+              </div>
+            </div>
+          </div>
+
+          <div className="card anim-3 mb-4">
             <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
               <span className="card-title">Live Hazard & Disaster Map</span>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -409,7 +485,7 @@ export default function HazardZoning({ page, onNav, currentUser, onLogout, featu
             </p>
           </div>
 
-          <div className="card anim-2">
+          <div className="card anim-4">
             <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
               <span className="card-title">Hazard Zone Register ({hazardZones.length})</span>
               <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>

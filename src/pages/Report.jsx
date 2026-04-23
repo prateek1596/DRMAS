@@ -195,6 +195,21 @@ export default function Report({ page, onNav, currentUser, onLogout, featureFlag
   const active = disasters.filter((d) => d.status === 'Active').length;
   const responding = disasters.filter((d) => d.status === 'Responding').length;
   const resolved = disasters.filter((d) => d.status === 'Resolved').length;
+  const severityMix = {
+    Critical: disasters.filter((d) => d.severity === 'Critical').length,
+    High: disasters.filter((d) => d.severity === 'High').length,
+    Moderate: disasters.filter((d) => d.severity === 'Moderate').length,
+    Low: disasters.filter((d) => d.severity === 'Low').length,
+  };
+  const watchlist = [...disasters]
+    .filter((d) => d.status !== 'Resolved')
+    .sort((a, b) => {
+      const rank = { Critical: 4, High: 3, Moderate: 2, Low: 1 };
+      return (rank[b.severity] || 0) - (rank[a.severity] || 0);
+    })
+    .slice(0, 5);
+  const impactedTotal = disasters.reduce((sum, item) => sum + Number(item.people || 0), 0);
+  const responseRate = disasters.length ? Math.round(((responding + resolved) / disasters.length) * 100) : 0;
 
   return (
     <div className="app-shell">
@@ -236,7 +251,63 @@ export default function Report({ page, onNav, currentUser, onLogout, featureFlag
             </div>
           </div>
 
-          <div className="card anim-2">
+          <div className="grid-2 mb-4 anim-2">
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Incident Command Snapshot</span>
+                <span className="badge badge-blue">Live Feed</span>
+              </div>
+              <div className="mini-kpi-row mb-2">
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Response Rate</div>
+                  <div className="mini-kpi-value">{responseRate}%</div>
+                </div>
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Impacted</div>
+                  <div className="mini-kpi-value">{impactedTotal.toLocaleString()}</div>
+                </div>
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Watchlist</div>
+                  <div className="mini-kpi-value">{watchlist.length}</div>
+                </div>
+              </div>
+              <div className="brief-list">
+                {Object.entries(severityMix).map(([level, count]) => (
+                  <div className="brief-item" key={level}>
+                    <div>
+                      <div className="activity-title">{level} severity</div>
+                      <div className="brief-meta">Current incident distribution</div>
+                    </div>
+                    <span className={`badge ${severityBadge(level)}`}>{count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Priority Watchlist</span>
+                <button className="btn btn-ghost btn-sm" onClick={() => setSearch('')}>Reset Search</button>
+              </div>
+              <div className="brief-list">
+                {watchlist.map((item) => (
+                  <div className="brief-item" key={item.id}>
+                    <div>
+                      <div className="activity-title">{item.type} · {item.location}</div>
+                      <div className="brief-meta">{item.people ? Number(item.people).toLocaleString() : 0} impacted · {item.status}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className={`badge ${severityBadge(item.severity)}`}>{item.severity}</span>
+                      <button className="btn btn-outline btn-sm" onClick={() => setViewTarget(item)}>Open</button>
+                    </div>
+                  </div>
+                ))}
+                {watchlist.length === 0 && <div className="widget-sub">No active incidents in the watchlist.</div>}
+              </div>
+            </div>
+          </div>
+
+          <div className="card anim-3">
             <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
               <span className="card-title">All Incidents ({disasters.length})</span>
               <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
