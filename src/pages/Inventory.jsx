@@ -129,6 +129,30 @@ export default function Inventory({ page, onNav, currentUser, onLogout, featureF
   const low = resources.filter(r => r.status === 'Low').length;
   const assigned = resources.filter(r => r.status === 'Assigned').length;
   const total = resources.reduce((s, r) => s + Number(r.qty), 0);
+  const assignmentCoverage = resources.length ? Math.round((assigned / resources.length) * 100) : 0;
+  const avgUnitsPerType = resources.length ? Math.round(total / resources.length) : 0;
+  const categorySummary = Object.entries(
+    resources.reduce((acc, item) => {
+      const key = item.category || 'Other';
+      acc[key] = (acc[key] || 0) + Number(item.qty || 0);
+      return acc;
+    }, {})
+  )
+    .map(([category, qty]) => ({ category, qty }))
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 5);
+  const locationHealth = Object.entries(
+    resources.reduce((acc, item) => {
+      const key = item.location || 'Unassigned';
+      if (!acc[key]) acc[key] = { location: key, low: 0 };
+      if (item.status === 'Low') acc[key].low += 1;
+      return acc;
+    }, {})
+  ).map(([, value]) => value);
+  const restockQueue = resources
+    .filter((item) => item.status === 'Low')
+    .sort((a, b) => Number(a.qty || 0) - Number(b.qty || 0))
+    .slice(0, 5);
 
   return (
     <div className="app-shell">
@@ -172,8 +196,65 @@ export default function Inventory({ page, onNav, currentUser, onLogout, featureF
             </div>
           </div>
 
+          <div className="grid-2 mb-4 anim-2">
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Inventory Intelligence</span>
+                <span className="badge badge-blue">Updated Live</span>
+              </div>
+              <div className="mini-kpi-row mb-2">
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Coverage</div>
+                  <div className="mini-kpi-value">{assignmentCoverage}%</div>
+                </div>
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Avg Units / Type</div>
+                  <div className="mini-kpi-value">{avgUnitsPerType}</div>
+                </div>
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Active Depots</div>
+                  <div className="mini-kpi-value">{locationHealth.length}</div>
+                </div>
+              </div>
+              <div className="brief-list">
+                {categorySummary.map((item) => (
+                  <div className="brief-item" key={item.category}>
+                    <div>
+                      <div className="activity-title">{item.category}</div>
+                      <div className="brief-meta">Top stocked category</div>
+                    </div>
+                    <span className="badge badge-green">{item.qty.toLocaleString()} units</span>
+                  </div>
+                ))}
+                {categorySummary.length === 0 && <div className="widget-sub">No category analytics yet.</div>}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Restock Priority Queue</span>
+                <button className="btn btn-ghost btn-sm" onClick={() => setTab('Low Stock')}>Open Low Stock</button>
+              </div>
+              <div className="brief-list">
+                {restockQueue.map((item) => (
+                  <div className="brief-item" key={item.id}>
+                    <div>
+                      <div className="activity-title">{item.name}</div>
+                      <div className="brief-meta">{item.location} · {item.category}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="badge badge-red">{item.qty} left</span>
+                      <button className="btn btn-outline btn-sm" onClick={() => openEdit(item)}>Adjust</button>
+                    </div>
+                  </div>
+                ))}
+                {restockQueue.length === 0 && <div className="widget-sub">No urgent restock items.</div>}
+              </div>
+            </div>
+          </div>
+
           {/* Table */}
-          <div className="card anim-2">
+          <div className="card anim-3">
             <div className="card-header" style={{flexWrap:'wrap',gap:12}}>
               <div style={{display:'flex',gap:3,background:'rgba(255,255,255,.18)',borderRadius:12,padding:3,border:'1px solid rgba(255,255,255,.24)',WebkitBackdropFilter:'blur(12px)',backdropFilter:'blur(12px)'}}>
                 {TABS.map(t => (
