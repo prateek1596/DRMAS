@@ -50,6 +50,7 @@ function AppInner() {
     volunteersModule: true,
     dashboardTrends: true,
   });
+  const [compactTables, setCompactTables] = useState(false);
 
   const loggedIn = Boolean(currentUser);
   const page = getPageFromPath(location.pathname);
@@ -82,6 +83,29 @@ function AppInner() {
         // Keep defaults if flags cannot be fetched.
       });
   }, [loggedIn]);
+
+  useEffect(() => {
+    if (!loggedIn) {
+      setCompactTables(false);
+      return;
+    }
+
+    api
+      .getSettings()
+      .then((settings) => {
+        setCompactTables(Boolean(settings?.operations?.compactTables));
+      })
+      .catch(() => {
+        setCompactTables(false);
+      });
+  }, [loggedIn]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('compact-tables', compactTables);
+    return () => {
+      document.documentElement.classList.remove('compact-tables');
+    };
+  }, [compactTables]);
 
   useEffect(() => {
     const desiredPage = getPageFromPath(location.pathname);
