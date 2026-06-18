@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import Modal from '../components/Modal';
 import PageState from '../components/PageState';
 import { useToast } from '../components/Toast';
-import { api } from '../api';
+import { useStore } from '../store';
 
 const BLANK = {
   fullName: '',
@@ -24,9 +24,7 @@ function statusClass(status) {
 
 export default function Volunteers({ page, onNav, currentUser, onLogout, featureFlags }) {
   const toast = useToast();
-  const [volunteers, setVolunteers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { volunteers, addVolunteer, updateVolunteer, deleteVolunteer, loading, error } = useStore();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [form, setForm] = useState(BLANK);
@@ -34,28 +32,6 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        const rows = await api.getVolunteers();
-        if (!cancelled) setVolunteers(Array.isArray(rows) ? rows : []);
-      } catch (loadError) {
-        if (!cancelled) setError(loadError.message || 'Unable to load volunteers.');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -122,7 +98,7 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
     if (!validate()) return;
     setSaving(true);
     try {
-      const created = await api.createVolunteer({
+      await addVolunteer({
         fullName: form.fullName.trim(),
         role: form.role.trim(),
         skill: form.skill.trim(),
@@ -131,7 +107,6 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
         status: form.status,
         notes: form.notes.trim(),
       });
-      setVolunteers((prev) => [created, ...prev]);
       setForm(BLANK);
       setShowAdd(false);
       toast('Volunteer added successfully.');
@@ -159,7 +134,7 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
     if (!editTarget || !validate()) return;
     setSaving(true);
     try {
-      const updated = await api.updateVolunteer(editTarget.id, {
+      await updateVolunteer(editTarget.id, {
         fullName: form.fullName.trim(),
         role: form.role.trim(),
         skill: form.skill.trim(),
@@ -168,7 +143,6 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
         status: form.status,
         notes: form.notes.trim(),
       });
-      setVolunteers((prev) => prev.map((item) => (item.id === editTarget.id ? updated : item)));
       setEditTarget(null);
       setForm(BLANK);
       toast('Volunteer updated.', 'info');
@@ -183,8 +157,7 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
     if (!deleteTarget) return;
     setSaving(true);
     try {
-      await api.deleteVolunteer(deleteTarget.id);
-      setVolunteers((prev) => prev.filter((item) => item.id !== deleteTarget.id));
+      await deleteVolunteer(deleteTarget.id);
       setDeleteTarget(null);
       toast('Volunteer removed.', 'info');
     } catch (deleteError) {
@@ -199,8 +172,7 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
     const idx = order.indexOf(item.status);
     const next = order[(idx + 1) % order.length];
     try {
-      const updated = await api.updateVolunteer(item.id, { status: next });
-      setVolunteers((prev) => prev.map((v) => (v.id === item.id ? updated : v)));
+      await updateVolunteer(item.id, { status: next });
     } catch (statusError) {
       toast(statusError.message || 'Unable to update status.', 'error');
     }

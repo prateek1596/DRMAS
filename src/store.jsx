@@ -9,6 +9,7 @@ export function StoreProvider({ children }) {
   const [allocations, setAllocations] = useState([]);
   const [otsTasks, setOtsTasks] = useState([]);
   const [hazardZones, setHazardZones] = useState([]);
+  const [volunteers, setVolunteers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -22,6 +23,7 @@ export function StoreProvider({ children }) {
       setAllocations(data.allocations || []);
       setOtsTasks(data.otsTasks || []);
       setHazardZones(data.hazardZones || []);
+      setVolunteers(data.volunteers || []);
     } catch (e) {
       setError(e.message || 'Failed to load data from backend.');
     } finally {
@@ -120,6 +122,23 @@ export function StoreProvider({ children }) {
     setHazardZones((prev) => prev.filter((zone) => zone.id !== id));
   };
 
+  const addVolunteer = async (payload) => {
+    const created = await api.createVolunteer(payload);
+    setVolunteers((prev) => [created, ...prev]);
+    return created;
+  };
+
+  const updateVolunteer = async (id, payload) => {
+    const updated = await api.updateVolunteer(id, payload);
+    setVolunteers((prev) => prev.map((volunteer) => (volunteer.id === id ? updated : volunteer)));
+    return updated;
+  };
+
+  const deleteVolunteer = async (id) => {
+    await api.deleteVolunteer(id);
+    setVolunteers((prev) => prev.filter((volunteer) => volunteer.id !== id));
+  };
+
   return (
     <Store.Provider
       value={{
@@ -128,6 +147,7 @@ export function StoreProvider({ children }) {
         allocations,
         otsTasks,
         hazardZones,
+        volunteers,
         loading,
         error,
         reload: loadBootstrap,
@@ -146,6 +166,9 @@ export function StoreProvider({ children }) {
         addHazardZone,
         updateHazardZone,
         deleteHazardZone,
+        addVolunteer,
+        updateVolunteer,
+        deleteVolunteer,
       }}
     >
       {children}

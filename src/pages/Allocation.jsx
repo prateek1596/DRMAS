@@ -6,10 +6,8 @@ import { useStore } from '../store';
 import { useToast } from '../components/Toast';
 
 const ZONES = ['Zone A – Riverside', 'Zone B – Highland', 'Zone C – Downtown', 'Zone D – Coastal', 'Zone E – Industrial'];
-const LEADS = ['Sarah Johnson', 'Mike Torres', 'Emma Wilson', 'Chris Park', 'Aditya Kumar'];
-
 export default function Allocation({ page, onNav, currentUser, onLogout, featureFlags }) {
-  const { resources, allocations, createAllocation, loading, error } = useStore();
+  const { resources, allocations, volunteers, createAllocation, loading, error } = useStore();
   const toast = useToast();
   const [form, setForm] = useState({ area: '', resourceId: '', qty: '', volunteer: '' });
   const [allocating, setAllocating] = useState(false);
@@ -18,6 +16,7 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
 
   const availableResources = resources.filter(r => r.status !== 'Assigned' && Number(r.qty) > 0);
   const selectedResource = resources.find(r => r.id === Number(form.resourceId));
+  const availableVolunteers = volunteers.filter((volunteer) => volunteer.status === 'Available' || volunteer.status === 'Standby');
 
   const handleAllocate = async () => {
     if (!form.area || !form.resourceId || !form.qty) { toast('Please fill all required fields.', 'error'); return; }

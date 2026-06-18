@@ -303,8 +303,9 @@ app.get('/api/bootstrap', requireAuth, async (req, res) => {
   const allocations = await all(db, 'SELECT * FROM allocations ORDER BY createdAt DESC');
   const otsTasks = await all(db, 'SELECT * FROM ots_tasks ORDER BY createdAt DESC');
   const hazardZones = await all(db, 'SELECT * FROM hazard_zones ORDER BY id DESC');
+  const volunteers = await all(db, 'SELECT * FROM volunteers ORDER BY updatedAt DESC, id DESC');
 
-  res.json({ resources, disasters, allocations, otsTasks, hazardZones });
+  res.json({ resources, disasters, allocations, otsTasks, hazardZones, volunteers });
 });
 
 app.get('/api/trends', requireAuth, async (req, res) => {
