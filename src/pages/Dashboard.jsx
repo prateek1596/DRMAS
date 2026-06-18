@@ -6,8 +6,10 @@ import { useStore } from '../store';
 import { api } from '../api';
 
 export default function Dashboard({ page, onNav, currentUser, onLogout, featureFlags }) {
-  const { resources, disasters, allocations, otsTasks, hazardZones, volunteers, loading, error } = useStore();
+  const { resources, disasters, allocations, otsTasks, hazardZones, volunteers, loading, error, reload } = useStore();
   const [trends, setTrends] = useState({ incidentsByDay: [], allocationsByDay: [], stockByCategory: [] });
+  const [refreshSeconds, setRefreshSeconds] = useState(30);
+  const [lastSyncAt, setLastSyncAt] = useState(() => new Date());
 
   const critical = resources.filter(r => r.status === 'Low').length;
   const activeDisasters = disasters.filter(d => d.status === 'Active' || d.status === 'Responding').length;
@@ -51,8 +53,31 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
   const recentDisasters = [...disasters].reverse().slice(0, 4);
 
   useEffect(() => {
-    if (featureFlags?.dashboardTrends === false) return;
+    let cancelled = false;
+
     api
+      .getSettings()
+      .then((settings) => {
+        if (cancelled) return;
+        const next = Number(settings?.operations?.autoRefreshSeconds) || 30;
+        setRefreshSeconds(Math.max(15, Math.min(120, next)));
+      })
+      .catch(() => {
+        if (!cancelled) setRefreshSeconds(30);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loadTrends = React.useCallback(() => {
+    if (featureFlags?.dashboardTrends === false) {
+      setTrends({ incidentsByDay: [], allocationsByDay: [], stockByCategory: [] });
+      return Promise.resolve();
+    }
+
+    return api
       .getTrends()
       .then((data) => {
         setTrends({
@@ -66,8 +91,22 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
       });
   }, [featureFlags?.dashboardTrends]);
 
+  useEffect(() => {
+    loadTrends().finally(() => setLastSyncAt(new Date()));
+  }, [loadTrends]);
+
+  useEffect(() => {
+    if (!refreshSeconds) return undefined;
+    const timer = window.setInterval(() => {
+      Promise.all([reload(), loadTrends()]).finally(() => setLastSyncAt(new Date()));
+    }, refreshSeconds * 1000);
+
+    return () => window.clearInterval(timer);
+  }, [loadTrends, refreshSeconds, reload]);
+
   const severityColor = (s) => s === 'Critical' ? 'var(--red)' : s === 'High' ? 'var(--orange)' : s === 'Moderate' ? 'var(--yellow)' : 'var(--green)';
   const severityClass = (s) => s === 'Critical' ? 'badge-red' : s === 'High' ? 'badge-orange' : s === 'Moderate' ? 'badge-yellow' : 'badge-green';
+  const lastSyncLabel = lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
     <div className="app-shell">
@@ -88,7 +127,7 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
           <PageState loading={loading} error={error} />
 
           <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:20,fontSize:12,color:'var(--text-secondary)'}} className="anim-1">
-            <div className="pulse-dot" />Last sync: Just now
+            <div className="pulse-dot" />Last sync: {lastSyncLabel} · refreshes every {refreshSeconds}s
           </div>
 
           {/* Stats */}
