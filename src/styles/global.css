@@ -216,6 +216,7 @@ textarea.form-control{resize:vertical;min-height:80px;line-height:1.55}
 
 /* Grids */
 .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .grid-auto{display:grid;grid-template-columns:2fr 1fr;gap:18px}
 .flex-between{display:flex;align-items:center;justify-content:space-between}
@@ -477,6 +478,7 @@ textarea.form-control{resize:vertical;min-height:80px;line-height:1.55}
   .topbar-right{flex-wrap:wrap}
   .search-wrap{min-width:180px}
   .map-legend{right:8px;bottom:8px}
+  .grid-4{grid-template-columns:1fr 1fr}
   .widget-grid{grid-template-columns:1fr 1fr}
 }
 
@@ -484,7 +486,7 @@ textarea.form-control{resize:vertical;min-height:80px;line-height:1.55}
   .app-shell{flex-direction:column}
   .sidebar{position:static;width:100%;transform:none}
   .main-area{margin-left:0}
-  .grid-3,.grid-2,.grid-auto{grid-template-columns:1fr}
+  .grid-4,.grid-3,.grid-2,.grid-auto{grid-template-columns:1fr}
   .widget-grid{grid-template-columns:1fr}
   .form-row{grid-template-columns:1fr}
   .topbar-user-chip{width:100%;justify-content:space-between}

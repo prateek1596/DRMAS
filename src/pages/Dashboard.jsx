@@ -6,7 +6,7 @@ import { useStore } from '../store';
 import { api } from '../api';
 
 export default function Dashboard({ page, onNav, currentUser, onLogout, featureFlags }) {
-  const { resources, disasters, allocations, otsTasks, hazardZones, loading, error } = useStore();
+  const { resources, disasters, allocations, otsTasks, hazardZones, volunteers, loading, error } = useStore();
   const [trends, setTrends] = useState({ incidentsByDay: [], allocationsByDay: [], stockByCategory: [] });
 
   const critical = resources.filter(r => r.status === 'Low').length;
@@ -14,6 +14,9 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
   const available = resources.reduce((s, r) => s + Number(r.qty), 0);
   const blockedOts = otsTasks.filter(t => t.status === 'Blocked').length;
   const criticalHazardZones = hazardZones.filter(z => z.riskLevel === 'Critical').length;
+  const availableVolunteers = volunteers.filter((volunteer) => volunteer.status === 'Available').length;
+  const onMissionVolunteers = volunteers.filter((volunteer) => volunteer.status === 'On Mission').length;
+  const volunteerReadiness = volunteers.length ? Math.round((availableVolunteers / volunteers.length) * 100) : 0;
   const assignedCount = resources.filter((r) => r.status === 'Assigned').length;
   const deploymentRate = resources.length ? Math.round((assignedCount / resources.length) * 100) : 0;
   const readinessScore = Math.max(0, Math.min(100, 100 - activeDisasters * 9 - critical * 6 - blockedOts * 8));
@@ -89,7 +92,7 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
           </div>
 
           {/* Stats */}
-          <div className="grid-3 mb-4 anim-1">
+          <div className="grid-4 mb-4 anim-1">
             <div className="stat-card">
               <div className="stat-glow" style={{background:'rgba(221,76,111,.24)'}} />
               <div className="stat-label">⚠️ Total Disasters</div>
@@ -107,6 +110,12 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
               <div className="stat-label">🛰️ OTS / Hazard Alerts</div>
               <div className="stat-value" style={{color:'var(--green)'}}>{blockedOts + criticalHazardZones}</div>
               <div className="stat-delta">{blockedOts} blocked tasks · {criticalHazardZones} critical zones</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-glow" style={{background:'rgba(56,144,108,.24)'}} />
+              <div className="stat-label">👥 Volunteer Readiness</div>
+              <div className="stat-value" style={{color:'var(--green)'}}>{volunteerReadiness}%</div>
+              <div className="stat-delta">{availableVolunteers} available · {onMissionVolunteers} on mission</div>
             </div>
           </div>
 
@@ -152,6 +161,7 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
               <button className="btn btn-outline" onClick={() => onNav('allocation')}>🚁 Allocate Resources</button>
               <button className="btn btn-outline" onClick={() => onNav('ots')}>🛰️ OTS Board</button>
               <button className="btn btn-outline" onClick={() => onNav('hazard')}>🗺️ Hazard Zoning</button>
+              <button className="btn btn-outline" onClick={() => onNav('volunteers')}>👥 Volunteer Roster</button>
             </div>
           </div>
 
@@ -182,7 +192,7 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
               <div className="mini-kpi-row mb-2">
                 <div className="mini-kpi">
                   <div className="mini-kpi-label">Open Tasks</div>
-                  <div className="mini-kpi-value">{otsTasks.filter((task) => task.status !== 'Done').length}</div>
+                  <div className="mini-kpi-value">{otsTasks.filter((task) => task.status !== 'Completed').length}</div>
                 </div>
                 <div className="mini-kpi">
                   <div className="mini-kpi-label">Resource Transfers</div>
@@ -191,6 +201,10 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
                 <div className="mini-kpi">
                   <div className="mini-kpi-label">Critical Zones</div>
                   <div className="mini-kpi-value">{criticalHazardZones}</div>
+                </div>
+                <div className="mini-kpi">
+                  <div className="mini-kpi-label">Ready Volunteers</div>
+                  <div className="mini-kpi-value">{availableVolunteers}</div>
                 </div>
               </div>
               <div className="brief-list">

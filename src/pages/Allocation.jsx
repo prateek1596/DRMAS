@@ -113,8 +113,15 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
                     <label className="form-label">Lead Volunteer</label>
                     <select className="form-control" value={form.volunteer} onChange={set('volunteer')}>
                       <option value="">Choose a lead volunteer</option>
-                      {LEADS.map(v => <option key={v}>{v}</option>)}
+                      {availableVolunteers.map((volunteer) => (
+                        <option key={volunteer.id} value={volunteer.fullName}>
+                          {volunteer.fullName} ({volunteer.skill}, {volunteer.status})
+                        </option>
+                      ))}
                     </select>
+                    {availableVolunteers.length === 0 && (
+                      <div style={{fontSize:11,color:'var(--orange)',marginTop:5}}>No available or standby volunteers in the roster.</div>
+                    )}
                   </div>
                 </div>
 
