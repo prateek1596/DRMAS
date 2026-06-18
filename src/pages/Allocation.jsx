@@ -1,18 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import PageState from '../components/PageState';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
+import { api } from '../api';
 
-const ZONES = ['Zone A – Riverside', 'Zone B – Highland', 'Zone C – Downtown', 'Zone D – Coastal', 'Zone E – Industrial'];
+const ZONES = ['Zone A - Riverside', 'Zone B - Highland', 'Zone C - Downtown', 'Zone D - Coastal', 'Zone E - Industrial'];
+const DEFAULT_ZONE = 'Zone A - Riverside';
+
+function normalizeZoneLabel(value) {
+  return String(value || '').replace(/\s+[–—]\s+/g, ' - ').trim();
+}
+
 export default function Allocation({ page, onNav, currentUser, onLogout, featureFlags }) {
   const { resources, allocations, volunteers, createAllocation, loading, error } = useStore();
   const toast = useToast();
   const [form, setForm] = useState({ area: '', resourceId: '', qty: '', volunteer: '' });
+  const [defaultZone, setDefaultZone] = useState(DEFAULT_ZONE);
   const [allocating, setAllocating] = useState(false);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .getSettings()
+      .then((settings) => {
+        if (cancelled) return;
+        const configuredZone = normalizeZoneLabel(settings?.operations?.defaultZone || DEFAULT_ZONE);
+        const nextZone = ZONES.includes(configuredZone) ? configuredZone : DEFAULT_ZONE;
+        setDefaultZone(nextZone);
+        setForm((current) => (current.area ? current : { ...current, area: nextZone }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setForm((current) => (current.area ? current : { ...current, area: DEFAULT_ZONE }));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const availableResources = resources.filter(r => r.status !== 'Assigned' && Number(r.qty) > 0);
   const selectedResource = resources.find(r => r.id === Number(form.resourceId));
@@ -33,7 +63,7 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
         qty,
         volunteer: form.volunteer,
       });
-      setForm({ area: '', resourceId: '', qty: '', volunteer: '' });
+      setForm({ area: defaultZone, resourceId: '', qty: '', volunteer: '' });
       setAllocating(false);
       toast(`✅ ${qty} units of "${selectedResource?.name}" allocated to ${form.area}`);
     } catch (error) {
@@ -49,7 +79,7 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
   const dispatchReady = resources.filter((r) => r.status !== 'Low' && Number(r.qty) > 0).length;
   const pressureZones = ZONES.map((zone) => ({
     zone,
-    count: allocations.filter((entry) => entry.area === zone).length,
+    count: allocations.filter((entry) => normalizeZoneLabel(entry.area) === zone).length,
   }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 4);

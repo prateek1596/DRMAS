@@ -176,3 +176,48 @@ test('volunteer roster supports CRUD and audit logging', async () => {
   assert.ok(logs.body.some((row) => row.action === 'VOLUNTEER_UPDATE'));
   assert.ok(logs.body.some((row) => row.action === 'VOLUNTEER_DELETE'));
 });
+
+test('settings endpoint persists operational defaults per user', async () => {
+  const { user } = await registerUser();
+  const login = await loginUser(user);
+
+  const initial = await client
+    .get('/api/settings')
+    .set('Authorization', `Bearer ${login.accessToken}`);
+
+  assert.equal(initial.status, 200);
+  assert.equal(initial.body.operations.defaultZone, 'Zone A - Riverside');
+
+  const updated = await client
+    .put('/api/settings')
+    .set('Authorization', `Bearer ${login.accessToken}`)
+    .send({
+      operations: {
+        defaultZone: 'Zone D - Coastal',
+        autoRefreshSeconds: '60',
+        requireDeleteConfirm: false,
+        compactTables: true,
+      },
+    });
+
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.operations.defaultZone, 'Zone D - Coastal');
+  assert.equal(updated.body.operations.autoRefreshSeconds, '60');
+  assert.equal(updated.body.operations.requireDeleteConfirm, false);
+  assert.equal(updated.body.operations.compactTables, true);
+
+  const reloaded = await client
+    .get('/api/settings')
+    .set('Authorization', `Bearer ${login.accessToken}`);
+
+  assert.equal(reloaded.status, 200);
+  assert.equal(reloaded.body.operations.defaultZone, 'Zone D - Coastal');
+  assert.equal(reloaded.body.operations.autoRefreshSeconds, '60');
+
+  const logs = await client
+    .get('/api/audit-logs')
+    .set('Authorization', `Bearer ${login.accessToken}`);
+
+  assert.equal(logs.status, 200);
+  assert.ok(logs.body.some((row) => row.action === 'SETTINGS_UPDATE'));
+});
