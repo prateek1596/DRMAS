@@ -4,10 +4,12 @@ import App from './App';
 
 const mockBootstrapSession = jest.fn();
 const mockGetFeatureFlags = jest.fn();
+const mockGetSettings = jest.fn();
 
 jest.mock('./api', () => ({
   api: {
     getFeatureFlags: (...args) => mockGetFeatureFlags(...args),
+    getSettings: (...args) => mockGetSettings(...args),
   },
   bootstrapSession: (...args) => mockBootstrapSession(...args),
   login: jest.fn(),
@@ -75,6 +77,7 @@ describe('App auth bootstrap and feature flags', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     window.history.pushState({}, '', '/dashboard');
+    mockGetSettings.mockResolvedValue({ operations: { compactTables: false } });
     mockGetFeatureFlags.mockResolvedValue({
       allocationModule: true,
       otsModule: true,
@@ -97,6 +100,7 @@ describe('App auth bootstrap and feature flags', () => {
   test('redirects disabled feature route to dashboard', async () => {
     window.history.pushState({}, '', '/hazard');
     mockBootstrapSession.mockResolvedValue({ id: 1, username: 'tester' });
+    mockGetSettings.mockResolvedValue({ operations: { compactTables: false } });
     mockGetFeatureFlags.mockResolvedValue({
       hazardModule: false,
       allocationModule: true,
