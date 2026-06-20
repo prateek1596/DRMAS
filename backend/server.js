@@ -19,6 +19,8 @@ const FEATURE_FLAGS = {
   allocationModule: process.env.FLAG_ALLOCATION_MODULE !== 'false',
 };
 
+const USER_ROLES = new Set(['Admin', 'NGO', 'Volunteer', 'Operator']);
+
 const SETTINGS_DEFAULTS = {
   profile: {
     fullName: '',
@@ -231,6 +233,8 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/auth/register', async (req, res) => {
   const { fullName, email, username, password } = req.body || {};
+  const roleInput = String(req.body?.role || 'Operator').trim();
+  const role = USER_ROLES.has(roleInput) ? roleInput : 'Operator';
   if (!fullName || !email || !username || !password) {
     return res.status(400).json({ message: 'All registration fields are required.' });
   }
@@ -247,7 +251,7 @@ app.post('/api/auth/register', async (req, res) => {
   await run(
     db,
     'INSERT INTO users (id, fullName, username, email, password, role, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [userId, String(fullName).trim(), String(username).trim(), String(email).trim(), hashedPassword, 'Operator', new Date().toISOString()]
+    [userId, String(fullName).trim(), String(username).trim(), String(email).trim(), hashedPassword, role, new Date().toISOString()]
   );
 
   await recordAudit(db, {

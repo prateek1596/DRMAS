@@ -33,6 +33,7 @@ async function registerUser(payload = {}) {
     fullName: payload.fullName || 'Test Operator',
     email: payload.email || `operator-${Date.now()}@drams.local`,
     username: payload.username || `operator${Date.now()}`,
+    role: payload.role || 'Operator',
     password: payload.password || 'test-pass-123',
   };
 
@@ -54,13 +55,14 @@ async function loginUser(user) {
 }
 
 test('register + login + bootstrap protected flow works', async () => {
-  const { user, res: registerRes } = await registerUser();
+  const { user, res: registerRes } = await registerUser({ role: 'NGO' });
   assert.equal(registerRes.status, 201);
 
   const login = await loginUser(user);
   assert.equal(login.res.status, 200);
   assert.ok(login.accessToken);
   assert.ok(login.refreshToken);
+  assert.equal(login.res.body.user.role, 'NGO');
 
   const unauthorized = await client.get('/api/bootstrap');
   assert.equal(unauthorized.status, 401);

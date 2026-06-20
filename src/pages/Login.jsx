@@ -12,6 +12,7 @@ export default function Login({ onLogin, onRegister }) {
     fullName: '',
     email: '',
     username: '',
+    role: 'Operator',
     password: '',
     confirmPassword: '',
   });
@@ -74,6 +75,7 @@ export default function Login({ onLogin, onRegister }) {
       fullName: register.fullName.trim(),
       email: register.email.trim(),
       username: register.username.trim(),
+      role: register.role,
       password: register.password,
     });
 
@@ -86,7 +88,7 @@ export default function Login({ onLogin, onRegister }) {
     setMode('login');
     setUsername(register.username.trim());
     setPassword('');
-    setRegister({ fullName: '', email: '', username: '', password: '', confirmPassword: '' });
+    setRegister({ fullName: '', email: '', username: '', role: 'Operator', password: '', confirmPassword: '' });
   };
 
   return (
@@ -170,6 +172,15 @@ export default function Login({ onLogin, onRegister }) {
                   <div className="form-group">
                     <label className="form-label">Username</label>
                     <input className="form-control" placeholder="Create a username" value={register.username} onChange={setRegisterField('username')} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Responder Role</label>
+                    <select className="form-control" value={register.role} onChange={setRegisterField('role')}>
+                      <option value="Operator">Operator</option>
+                      <option value="Admin">Admin</option>
+                      <option value="NGO">NGO</option>
+                      <option value="Volunteer">Volunteer</option>
+                    </select>
                   </div>
                   <div className="form-row">
                     <div className="form-group">
