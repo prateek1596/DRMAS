@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './styles/global.css';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { StoreProvider } from './store';
@@ -61,6 +61,20 @@ function AppInner() {
     return featureFlags[flag] !== false;
   };
 
+  const loadSettings = useCallback(async () => {
+    if (!loggedIn) {
+      setCompactTables(false);
+      return;
+    }
+
+    try {
+      const settings = await api.getSettings();
+      setCompactTables(Boolean(settings?.operations?.compactTables));
+    } catch {
+      setCompactTables(false);
+    }
+  }, [loggedIn]);
+
   const onNav = (nextPage) => {
     const destination = isPageEnabled(nextPage) ? nextPage : 'dashboard';
     navigate(PAGE_ROUTES[destination] || PAGE_ROUTES.dashboard);
@@ -85,20 +99,19 @@ function AppInner() {
   }, [loggedIn]);
 
   useEffect(() => {
-    if (!loggedIn) {
-      setCompactTables(false);
-      return;
-    }
+    loadSettings();
+  }, [loadSettings]);
 
-    api
-      .getSettings()
-      .then((settings) => {
-        setCompactTables(Boolean(settings?.operations?.compactTables));
-      })
-      .catch(() => {
-        setCompactTables(false);
-      });
-  }, [loggedIn]);
+  useEffect(() => {
+    const handleSettingsUpdated = () => {
+      loadSettings();
+    };
+
+    window.addEventListener('drams:settings-updated', handleSettingsUpdated);
+    return () => {
+      window.removeEventListener('drams:settings-updated', handleSettingsUpdated);
+    };
+  }, [loadSettings]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('compact-tables', compactTables);

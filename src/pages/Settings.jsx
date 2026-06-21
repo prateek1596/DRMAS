@@ -157,6 +157,7 @@ export default function Settings({ page, onNav, currentUser, onLogout, featureFl
       const merged = mergeSettings(makeBase(currentUser), updated);
       setSettings(merged);
       setBaseline(merged);
+      window.dispatchEvent(new Event('drams:settings-updated'));
       toast('Settings saved successfully.');
     } catch (saveError) {
       toast(saveError.message || 'Unable to save settings.', 'error');

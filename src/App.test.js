@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 
 const mockBootstrapSession = jest.fn();
@@ -117,4 +117,23 @@ describe('App auth bootstrap and feature flags', () => {
 
     expect(screen.queryByText('Hazard Page')).toBeNull();
   });
+  test('refreshes compact tables settings when the settings-updated event fires', async () => {
+    mockBootstrapSession.mockResolvedValue({ id: 1, username: 'tester' });
+    mockGetSettings.mockResolvedValue({ operations: { compactTables: false } });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(mockGetSettings).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event('drams:settings-updated'));
+    });
+
+    await waitFor(() => {
+      expect(mockGetSettings).toHaveBeenCalledTimes(2);
+    });
+  });
+
 });
