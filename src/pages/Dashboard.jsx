@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import PageState from '../components/PageState';
@@ -52,24 +52,26 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
 
   const recentDisasters = [...disasters].reverse().slice(0, 4);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    api
-      .getSettings()
-      .then((settings) => {
-        if (cancelled) return;
-        const next = Number(settings?.operations?.autoRefreshSeconds) || 30;
-        setRefreshSeconds(Math.max(15, Math.min(120, next)));
-      })
-      .catch(() => {
-        if (!cancelled) setRefreshSeconds(30);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+  const loadRefreshSettings = useCallback(async () => {
+    try {
+      const settings = await api.getSettings();
+      const next = Number(settings?.operations?.autoRefreshSeconds) || 30;
+      setRefreshSeconds(Math.max(15, Math.min(120, next)));
+    } catch {
+      setRefreshSeconds(30);
+    }
   }, []);
+
+  useEffect(() => {
+    loadRefreshSettings();
+  }, [loadRefreshSettings]);
+
+  useEffect(() => {
+    window.addEventListener('drams:settings-updated', loadRefreshSettings);
+    return () => {
+      window.removeEventListener('drams:settings-updated', loadRefreshSettings);
+    };
+  }, [loadRefreshSettings]);
 
   const loadTrends = React.useCallback(() => {
     if (featureFlags?.dashboardTrends === false) {

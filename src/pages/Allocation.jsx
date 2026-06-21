@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import PageState from '../components/PageState';
@@ -22,27 +22,30 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  useEffect(() => {
-    let cancelled = false;
-
-    api
-      .getSettings()
-      .then((settings) => {
-        if (cancelled) return;
-        const configuredZone = normalizeZoneLabel(settings?.operations?.defaultZone || DEFAULT_ZONE);
-        const nextZone = ZONES.includes(configuredZone) ? configuredZone : DEFAULT_ZONE;
-        setDefaultZone(nextZone);
-        setForm((current) => (current.area ? current : { ...current, area: nextZone }));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setForm((current) => (current.area ? current : { ...current, area: DEFAULT_ZONE }));
+  const loadDefaultZone = useCallback(async () => {
+    try {
+      const settings = await api.getSettings();
+      const configuredZone = normalizeZoneLabel(settings?.operations?.defaultZone || DEFAULT_ZONE);
+      const nextZone = ZONES.includes(configuredZone) ? configuredZone : DEFAULT_ZONE;
+      setDefaultZone((previousZone) => {
+        setForm((current) => (!current.area || current.area === previousZone ? { ...current, area: nextZone } : current));
+        return nextZone;
       });
-
-    return () => {
-      cancelled = true;
-    };
+    } catch {
+      setForm((current) => (current.area ? current : { ...current, area: DEFAULT_ZONE }));
+    }
   }, []);
+
+  useEffect(() => {
+    loadDefaultZone();
+  }, [loadDefaultZone]);
+
+  useEffect(() => {
+    window.addEventListener('drams:settings-updated', loadDefaultZone);
+    return () => {
+      window.removeEventListener('drams:settings-updated', loadDefaultZone);
+    };
+  }, [loadDefaultZone]);
 
   const availableResources = resources.filter(r => r.status !== 'Assigned' && Number(r.qty) > 0);
   const selectedResource = resources.find(r => r.id === Number(form.resourceId));
