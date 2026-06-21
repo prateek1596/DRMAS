@@ -223,3 +223,63 @@ test('settings endpoint persists operational defaults per user', async () => {
   assert.equal(logs.status, 200);
   assert.ok(logs.body.some((row) => row.action === 'SETTINGS_UPDATE'));
 });
+
+test('dashboard stats endpoint summarizes operational data', async () => {
+  const { user } = await registerUser();
+  const login = await loginUser(user);
+  const auth = { Authorization: `Bearer ${login.accessToken}` };
+
+  const unauthorized = await client.get('/api/dashboard/stats');
+  assert.equal(unauthorized.status, 401);
+
+  await client
+    .post('/api/resources')
+    .set(auth)
+    .send({
+      name: 'Water Rations',
+      category: 'Food',
+      qty: 8,
+      location: 'Zone A Depot',
+      notes: 'low quantity check',
+    });
+
+  const disaster = await client
+    .post('/api/disasters')
+    .set(auth)
+    .send({
+      type: 'Flood',
+      severity: 'Critical',
+      location: 'North Bank',
+      people: 120,
+      time: new Date().toISOString(),
+      info: 'river overflow',
+    });
+  assert.equal(disaster.status, 201);
+
+  const volunteer = await client
+    .post('/api/volunteers')
+    .set(auth)
+    .send({
+      fullName: 'Aarav Rescue',
+      role: 'Responder',
+      skill: 'Swift Water',
+      zone: 'Zone A - Riverside',
+      status: 'Available',
+    });
+  assert.equal(volunteer.status, 201);
+
+  const stats = await client
+    .get('/api/dashboard/stats')
+    .set(auth);
+
+  assert.equal(stats.status, 200);
+  assert.ok(stats.body.resources.total >= 1);
+  assert.ok(stats.body.resources.totalStock >= 8);
+  assert.ok(stats.body.resources.lowStock >= 1);
+  assert.ok(stats.body.disasters.active >= 1);
+  assert.ok(stats.body.disasters.critical >= 1);
+  assert.ok(stats.body.disasters.impactedPeople >= 120);
+  assert.ok(stats.body.volunteers.total >= 1);
+  assert.ok(stats.body.volunteers.available >= 1);
+  assert.equal(typeof stats.body.volunteers.readiness, 'number');
+});

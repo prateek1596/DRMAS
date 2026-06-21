@@ -312,6 +312,71 @@ app.get('/api/bootstrap', requireAuth, async (req, res) => {
   res.json({ resources, disasters, allocations, otsTasks, hazardZones, volunteers });
 });
 
+app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
+  const resourceStats = await get(
+    db,
+    `SELECT
+       COUNT(*) AS totalResources,
+       COALESCE(SUM(qty), 0) AS totalStock,
+       SUM(CASE WHEN status = 'Low' THEN 1 ELSE 0 END) AS lowStock,
+       SUM(CASE WHEN status = 'Assigned' THEN 1 ELSE 0 END) AS assignedResources
+     FROM resources`
+  );
+  const disasterStats = await get(
+    db,
+    `SELECT
+       COUNT(*) AS totalDisasters,
+       SUM(CASE WHEN status IN ('Active', 'Responding') THEN 1 ELSE 0 END) AS activeDisasters,
+       SUM(CASE WHEN severity = 'Critical' THEN 1 ELSE 0 END) AS criticalDisasters,
+       COALESCE(SUM(people), 0) AS impactedPeople
+     FROM disasters`
+  );
+  const operationsStats = await get(
+    db,
+    `SELECT
+       (SELECT COUNT(*) FROM allocations) AS totalAllocations,
+       (SELECT COUNT(*) FROM ots_tasks WHERE status != 'Completed') AS openTasks,
+       (SELECT COUNT(*) FROM ots_tasks WHERE status = 'Blocked') AS blockedTasks,
+       (SELECT COUNT(*) FROM hazard_zones WHERE riskLevel = 'Critical') AS criticalHazardZones,
+       (SELECT COUNT(*) FROM volunteers) AS totalVolunteers,
+       (SELECT COUNT(*) FROM volunteers WHERE status = 'Available') AS availableVolunteers,
+       (SELECT COUNT(*) FROM volunteers WHERE status = 'On Mission') AS onMissionVolunteers`
+  );
+
+  const totalResources = Number(resourceStats?.totalResources || 0);
+  const assignedResources = Number(resourceStats?.assignedResources || 0);
+  const totalVolunteers = Number(operationsStats?.totalVolunteers || 0);
+  const availableVolunteers = Number(operationsStats?.availableVolunteers || 0);
+
+  res.json({
+    resources: {
+      total: totalResources,
+      totalStock: Number(resourceStats?.totalStock || 0),
+      lowStock: Number(resourceStats?.lowStock || 0),
+      assigned: assignedResources,
+      deploymentRate: totalResources ? Math.round((assignedResources / totalResources) * 100) : 0,
+    },
+    disasters: {
+      total: Number(disasterStats?.totalDisasters || 0),
+      active: Number(disasterStats?.activeDisasters || 0),
+      critical: Number(disasterStats?.criticalDisasters || 0),
+      impactedPeople: Number(disasterStats?.impactedPeople || 0),
+    },
+    operations: {
+      allocations: Number(operationsStats?.totalAllocations || 0),
+      openTasks: Number(operationsStats?.openTasks || 0),
+      blockedTasks: Number(operationsStats?.blockedTasks || 0),
+      criticalHazardZones: Number(operationsStats?.criticalHazardZones || 0),
+    },
+    volunteers: {
+      total: totalVolunteers,
+      available: availableVolunteers,
+      onMission: Number(operationsStats?.onMissionVolunteers || 0),
+      readiness: totalVolunteers ? Math.round((availableVolunteers / totalVolunteers) * 100) : 0,
+    },
+  });
+});
+
 app.get('/api/trends', requireAuth, async (req, res) => {
   const disasters = await all(db, 'SELECT createdAt, time FROM disasters');
   const allocations = await all(db, 'SELECT createdAt, qty FROM allocations');
