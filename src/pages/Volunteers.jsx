@@ -5,6 +5,7 @@ import Modal from '../components/Modal';
 import PageState from '../components/PageState';
 import { useToast } from '../components/Toast';
 import { useStore } from '../store';
+import useRequireDeleteConfirm from '../hooks/useRequireDeleteConfirm';
 
 const BLANK = {
   fullName: '',
@@ -25,6 +26,7 @@ function statusClass(status) {
 export default function Volunteers({ page, onNav, currentUser, onLogout, featureFlags }) {
   const toast = useToast();
   const { volunteers, addVolunteer, updateVolunteer, deleteVolunteer, loading, error } = useStore();
+  const requireDeleteConfirm = useRequireDeleteConfirm();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [form, setForm] = useState(BLANK);
@@ -153,11 +155,19 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
+  const requestDelete = (item) => {
+    if (requireDeleteConfirm) {
+      setDeleteTarget(item);
+      return;
+    }
+    handleDelete(item);
+  };
+
+  const handleDelete = async (target = deleteTarget) => {
+    if (!target) return;
     setSaving(true);
     try {
-      await deleteVolunteer(deleteTarget.id);
+      await deleteVolunteer(target.id);
       setDeleteTarget(null);
       toast('Volunteer removed.', 'info');
     } catch (deleteError) {
@@ -378,7 +388,7 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
                           <td>
                             <div style={{ display: 'flex', gap: 6 }}>
                               <button className="btn btn-ghost btn-sm" onClick={() => openEdit(item)}>Edit</button>
-                              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setDeleteTarget(item)}>Delete</button>
+                              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => requestDelete(item)}>Delete</button>
                             </div>
                           </td>
                         </tr>
@@ -410,7 +420,7 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
                       <div className="mobile-entity-actions">
                         <button className="btn btn-ghost btn-sm" onClick={() => cycleStatus(item)}>Cycle Status</button>
                         <button className="btn btn-ghost btn-sm" onClick={() => openEdit(item)}>Edit</button>
-                        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setDeleteTarget(item)}>Delete</button>
+                        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => requestDelete(item)}>Delete</button>
                       </div>
                     </div>
                   ))}

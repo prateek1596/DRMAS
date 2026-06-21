@@ -5,6 +5,7 @@ import Modal from '../components/Modal';
 import PageState from '../components/PageState';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
+import useRequireDeleteConfirm from '../hooks/useRequireDeleteConfirm';
 
 const CATEGORIES = ['Medical', 'Water & Sanitation', 'Shelter', 'Food', 'Power', 'Rescue', 'Communication', 'Transport', 'Other'];
 const LOCATIONS = ['Zone A Depot', 'Zone B Depot', 'Zone C Depot', 'Zone D Depot', 'Storage Wing A', 'Storage Wing B', 'Cold Storage A', 'Main Depot', 'HQ Storage'];
@@ -51,6 +52,7 @@ function ResourceForm({ value, onChange }) {
 export default function Inventory({ page, onNav, currentUser, onLogout, featureFlags }) {
   const { resources, addResource, updateResource, deleteResource, assignResource, unassignResource, loading, error } = useStore();
   const toast = useToast();
+  const requireDeleteConfirm = useRequireDeleteConfirm();
   const [tab, setTab] = useState('All Resources');
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -116,10 +118,19 @@ export default function Inventory({ page, onNav, currentUser, onLogout, featureF
     }
   };
 
-  const handleDelete = async () => {
+  const requestDelete = (resource) => {
+    if (requireDeleteConfirm) {
+      setDeleteTarget(resource);
+      return;
+    }
+    handleDelete(resource);
+  };
+
+  const handleDelete = async (target = deleteTarget) => {
+    if (!target) return;
     try {
-      await deleteResource(deleteTarget.id);
-      toast(`🗑️ "${deleteTarget.name}" removed from inventory.`, 'info');
+      await deleteResource(target.id);
+      toast(`"${target.name}" removed from inventory.`, 'info');
       setDeleteTarget(null);
     } catch (error) {
       toast(error.message || 'Unable to delete resource.', 'error');
@@ -305,7 +316,7 @@ export default function Inventory({ page, onNav, currentUser, onLogout, featureF
                             ? <button className="btn btn-ghost btn-sm" title="Assign" onClick={() => openAssign(r)}>📤</button>
                             : <button className="btn btn-ghost btn-sm" title="Unassign" onClick={() => handleUnassign(r)}>↩️</button>
                           }
-                          <button className="btn btn-ghost btn-sm" title="Delete" onClick={() => setDeleteTarget(r)} style={{color:'var(--red)'}}>🗑️</button>
+                          <button className="btn btn-ghost btn-sm" title="Delete" onClick={() => requestDelete(r)} style={{color:'var(--red)'}}>🗑️</button>
                         </div>
                       </td>
                     </tr>
@@ -337,7 +348,7 @@ export default function Inventory({ page, onNav, currentUser, onLogout, featureF
                     {resource.status !== 'Assigned'
                       ? <button className="btn btn-ghost btn-sm" onClick={() => openAssign(resource)}>Assign</button>
                       : <button className="btn btn-ghost btn-sm" onClick={() => handleUnassign(resource)}>Unassign</button>}
-                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setDeleteTarget(resource)}>Delete</button>
+                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => requestDelete(resource)}>Delete</button>
                   </div>
                 </div>
               ))}

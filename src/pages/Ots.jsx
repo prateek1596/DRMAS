@@ -5,6 +5,7 @@ import Modal from '../components/Modal';
 import PageState from '../components/PageState';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
+import useRequireDeleteConfirm from '../hooks/useRequireDeleteConfirm';
 
 const PRIORITIES = ['Critical', 'High', 'Moderate', 'Low'];
 const STATUS = ['Queued', 'In Progress', 'Blocked', 'Completed'];
@@ -101,6 +102,7 @@ function OtsForm({ value, onChange, disasters }) {
 export default function Ots({ page, onNav, currentUser, onLogout, featureFlags }) {
   const { otsTasks, disasters, addOtsTask, updateOtsTask, deleteOtsTask, loading, error } = useStore();
   const toast = useToast();
+  const requireDeleteConfirm = useRequireDeleteConfirm();
 
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -198,10 +200,18 @@ export default function Ots({ page, onNav, currentUser, onLogout, featureFlags }
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
+  const requestDelete = (task) => {
+    if (requireDeleteConfirm) {
+      setDeleteTarget(task);
+      return;
+    }
+    handleDelete(task);
+  };
+
+  const handleDelete = async (target = deleteTarget) => {
+    if (!target) return;
     try {
-      await deleteOtsTask(deleteTarget.id);
+      await deleteOtsTask(target.id);
       setDeleteTarget(null);
       toast('Task deleted.', 'info');
     } catch (error) {
@@ -351,7 +361,7 @@ export default function Ots({ page, onNav, currentUser, onLogout, featureFlags }
                       <td>
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button className="btn btn-ghost btn-sm" onClick={() => openEdit(task)}>✏️</button>
-                          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setDeleteTarget(task)}>🗑️</button>
+                          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => requestDelete(task)}>🗑️</button>
                         </div>
                       </td>
                     </tr>
@@ -381,7 +391,7 @@ export default function Ots({ page, onNav, currentUser, onLogout, featureFlags }
                   <div className="mobile-entity-actions">
                     <button className="btn btn-ghost btn-sm" onClick={() => handleQuickStatus(task)}>Status</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => openEdit(task)}>Edit</button>
-                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setDeleteTarget(task)}>Delete</button>
+                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => requestDelete(task)}>Delete</button>
                   </div>
                 </div>
               ))}

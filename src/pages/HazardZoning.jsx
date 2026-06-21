@@ -7,6 +7,7 @@ import { useStore } from '../store';
 import { useToast } from '../components/Toast';
 import HazardMap from '../components/HazardMap';
 import { api } from '../api';
+import useRequireDeleteConfirm from '../hooks/useRequireDeleteConfirm';
 
 const RISK = ['Critical', 'High', 'Moderate', 'Low'];
 const STATUS = ['Restricted', 'Monitoring', 'Evacuation', 'Stabilized'];
@@ -121,6 +122,7 @@ function ZoneForm({ value, onChange, onUseLocation, geocoding }) {
 export default function HazardZoning({ page, onNav, currentUser, onLogout, featureFlags }) {
   const { hazardZones, disasters, addHazardZone, updateHazardZone, deleteHazardZone, loading, error } = useStore();
   const toast = useToast();
+  const requireDeleteConfirm = useRequireDeleteConfirm();
 
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
@@ -237,10 +239,18 @@ export default function HazardZoning({ page, onNav, currentUser, onLogout, featu
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
+  const requestDelete = (zone) => {
+    if (requireDeleteConfirm) {
+      setDeleteTarget(zone);
+      return;
+    }
+    handleDelete(zone);
+  };
+
+  const handleDelete = async (target = deleteTarget) => {
+    if (!target) return;
     try {
-      await deleteHazardZone(deleteTarget.id);
+      await deleteHazardZone(target.id);
       setDeleteTarget(null);
       toast('Hazard zone deleted.', 'info');
     } catch (error) {
@@ -529,7 +539,7 @@ export default function HazardZoning({ page, onNav, currentUser, onLogout, featu
                       <td>
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button className="btn btn-ghost btn-sm" onClick={() => openEdit(zone)}>✏️</button>
-                          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setDeleteTarget(zone)}>🗑️</button>
+                          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => requestDelete(zone)}>🗑️</button>
                         </div>
                       </td>
                     </tr>
@@ -560,7 +570,7 @@ export default function HazardZoning({ page, onNav, currentUser, onLogout, featu
                   <div className="mobile-entity-actions">
                     <button className="btn btn-ghost btn-sm" onClick={() => openEdit(zone)}>Edit</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => handleStatusCycle(zone)}>Status</button>
-                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setDeleteTarget(zone)}>Delete</button>
+                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => requestDelete(zone)}>Delete</button>
                   </div>
                 </div>
               ))}

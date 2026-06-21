@@ -6,6 +6,7 @@ import PageState from '../components/PageState';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
 import { api } from '../api';
+import useRequireDeleteConfirm from '../hooks/useRequireDeleteConfirm';
 
 const TYPES = ['Flood', 'Earthquake', 'Wildfire', 'Hurricane', 'Tornado', 'Drought', 'Chemical Spill', 'Landslide', 'Tsunami', 'Disease Outbreak', 'Other'];
 const SEVERITIES = ['Critical', 'High', 'Moderate', 'Low'];
@@ -88,6 +89,7 @@ function DisasterForm({ value, onChange, onUseLocation, geocoding }) {
 export default function Report({ page, onNav, currentUser, onLogout, featureFlags }) {
   const { disasters, addDisaster, updateDisaster, deleteDisaster, loading, error } = useStore();
   const toast = useToast();
+  const requireDeleteConfirm = useRequireDeleteConfirm();
 
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
@@ -172,9 +174,18 @@ export default function Report({ page, onNav, currentUser, onLogout, featureFlag
     }
   };
 
-  const handleDelete = async () => {
+  const requestDelete = (disaster) => {
+    if (requireDeleteConfirm) {
+      setDeleteTarget(disaster);
+      return;
+    }
+    handleDelete(disaster);
+  };
+
+  const handleDelete = async (target = deleteTarget) => {
+    if (!target) return;
     try {
-      await deleteDisaster(deleteTarget.id);
+      await deleteDisaster(target.id);
       setDeleteTarget(null);
       toast('Disaster report deleted.', 'info');
     } catch (error) {
@@ -353,7 +364,7 @@ export default function Report({ page, onNav, currentUser, onLogout, featureFlag
                         <div style={{ display: 'flex', gap: 5 }}>
                           <button className="btn btn-ghost btn-sm" onClick={() => setViewTarget(disaster)}>View</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => openEdit(disaster)}>Edit</button>
-                          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setDeleteTarget(disaster)}>Delete</button>
+                          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => requestDelete(disaster)}>Delete</button>
                         </div>
                       </td>
                     </tr>
@@ -384,7 +395,7 @@ export default function Report({ page, onNav, currentUser, onLogout, featureFlag
                   <div className="mobile-entity-actions">
                     <button className="btn btn-ghost btn-sm" onClick={() => setViewTarget(disaster)}>View</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => openEdit(disaster)}>Edit</button>
-                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => setDeleteTarget(disaster)}>Delete</button>
+                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => requestDelete(disaster)}>Delete</button>
                   </div>
                 </div>
               ))}
