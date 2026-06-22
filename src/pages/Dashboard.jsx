@@ -5,10 +5,18 @@ import PageState from '../components/PageState';
 import { useStore } from '../store';
 import { api } from '../api';
 
+const DEFAULT_NOTIFICATIONS = {
+  lowStockAlerts: true,
+  incidentEscalations: true,
+  hazardCritical: true,
+  digestDaily: false,
+};
+
 export default function Dashboard({ page, onNav, currentUser, onLogout, featureFlags }) {
   const { resources, disasters, allocations, otsTasks, hazardZones, volunteers, loading, error, reload } = useStore();
   const [trends, setTrends] = useState({ incidentsByDay: [], allocationsByDay: [], stockByCategory: [] });
   const [refreshSeconds, setRefreshSeconds] = useState(30);
+  const [notificationRules, setNotificationRules] = useState(DEFAULT_NOTIFICATIONS);
   const [lastSyncAt, setLastSyncAt] = useState(() => new Date());
 
   const critical = resources.filter(r => r.status === 'Low').length;
@@ -52,26 +60,28 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
 
   const recentDisasters = [...disasters].reverse().slice(0, 4);
 
-  const loadRefreshSettings = useCallback(async () => {
+  const loadDashboardSettings = useCallback(async () => {
     try {
       const settings = await api.getSettings();
       const next = Number(settings?.operations?.autoRefreshSeconds) || 30;
       setRefreshSeconds(Math.max(15, Math.min(120, next)));
+      setNotificationRules({ ...DEFAULT_NOTIFICATIONS, ...(settings?.notifications || {}) });
     } catch {
       setRefreshSeconds(30);
+      setNotificationRules(DEFAULT_NOTIFICATIONS);
     }
   }, []);
 
   useEffect(() => {
-    loadRefreshSettings();
-  }, [loadRefreshSettings]);
+    loadDashboardSettings();
+  }, [loadDashboardSettings]);
 
   useEffect(() => {
-    window.addEventListener('drams:settings-updated', loadRefreshSettings);
+    window.addEventListener('drams:settings-updated', loadDashboardSettings);
     return () => {
-      window.removeEventListener('drams:settings-updated', loadRefreshSettings);
+      window.removeEventListener('drams:settings-updated', loadDashboardSettings);
     };
-  }, [loadRefreshSettings]);
+  }, [loadDashboardSettings]);
 
   const loadTrends = React.useCallback(() => {
     if (featureFlags?.dashboardTrends === false) {
@@ -109,6 +119,43 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
   const severityColor = (s) => s === 'Critical' ? 'var(--red)' : s === 'High' ? 'var(--orange)' : s === 'Moderate' ? 'var(--yellow)' : 'var(--green)';
   const severityClass = (s) => s === 'Critical' ? 'badge-red' : s === 'High' ? 'badge-orange' : s === 'Moderate' ? 'badge-yellow' : 'badge-green';
   const lastSyncLabel = lastSyncAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const escalationIncidents = disasters.filter((item) => item.status !== 'Resolved' && (item.severity === 'Critical' || item.severity === 'High'));
+  const lowStockItems = resources.filter((item) => item.status === 'Low');
+  const criticalZones = hazardZones.filter((item) => item.riskLevel === 'Critical');
+  const notificationItems = [
+    notificationRules.lowStockAlerts && {
+      key: 'low-stock',
+      title: 'Low stock',
+      meta: `${lowStockItems.length} inventory lines below threshold`,
+      badge: lowStockItems.length ? 'Action' : 'Clear',
+      badgeClass: lowStockItems.length ? 'badge-red' : 'badge-green',
+      onClick: () => onNav('inventory'),
+    },
+    notificationRules.incidentEscalations && {
+      key: 'incident-escalations',
+      title: 'Incident escalations',
+      meta: `${escalationIncidents.length} high-priority active reports`,
+      badge: escalationIncidents.length ? 'Review' : 'Clear',
+      badgeClass: escalationIncidents.length ? 'badge-orange' : 'badge-green',
+      onClick: () => onNav('report'),
+    },
+    notificationRules.hazardCritical && {
+      key: 'critical-hazards',
+      title: 'Critical hazards',
+      meta: `${criticalZones.length} zones at critical risk`,
+      badge: criticalZones.length ? 'Route' : 'Clear',
+      badgeClass: criticalZones.length ? 'badge-red' : 'badge-green',
+      onClick: () => onNav('hazard'),
+    },
+    notificationRules.digestDaily && {
+      key: 'daily-digest',
+      title: 'Daily digest',
+      meta: `${activeDisasters} active incidents, ${blockedOts} blocked tasks, ${availableVolunteers} volunteers ready`,
+      badge: 'Digest',
+      badgeClass: 'badge-blue',
+      onClick: () => onNav('audit'),
+    },
+  ].filter(Boolean);
 
   return (
     <div className="app-shell">
@@ -203,6 +250,31 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
               <button className="btn btn-outline" onClick={() => onNav('ots')}>🛰️ OTS Board</button>
               <button className="btn btn-outline" onClick={() => onNav('hazard')}>🗺️ Hazard Zoning</button>
               <button className="btn btn-outline" onClick={() => onNav('volunteers')}>👥 Volunteer Roster</button>
+            </div>
+          </div>
+
+          <div className="card anim-3 mb-3">
+            <div className="card-header" style={{ flexWrap: 'wrap', gap: 10 }}>
+              <span className="card-title">Notification Watch</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => onNav('settings')}>Tune alerts</button>
+            </div>
+            <div className="brief-list">
+              {notificationItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className="brief-item"
+                  onClick={item.onClick}
+                  style={{ width: '100%', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+                >
+                  <div>
+                    <div className="activity-title">{item.title}</div>
+                    <div className="brief-meta">{item.meta}</div>
+                  </div>
+                  <span className={`badge ${item.badgeClass}`}>{item.badge}</span>
+                </button>
+              ))}
+              {notificationItems.length === 0 && <div className="widget-sub">All dashboard notification rules are muted in Settings.</div>}
             </div>
           </div>
 
