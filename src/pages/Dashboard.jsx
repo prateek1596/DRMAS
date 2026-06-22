@@ -17,6 +17,7 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
   const [trends, setTrends] = useState({ incidentsByDay: [], allocationsByDay: [], stockByCategory: [] });
   const [refreshSeconds, setRefreshSeconds] = useState(30);
   const [notificationRules, setNotificationRules] = useState(DEFAULT_NOTIFICATIONS);
+  const [dashboardStats, setDashboardStats] = useState(null);
   const [lastSyncAt, setLastSyncAt] = useState(() => new Date());
 
   const critical = resources.filter(r => r.status === 'Low').length;
@@ -83,6 +84,13 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
     };
   }, [loadDashboardSettings]);
 
+  const loadDashboardStats = useCallback(() => {
+    return api
+      .getDashboardStats()
+      .then((stats) => setDashboardStats(stats || null))
+      .catch(() => setDashboardStats(null));
+  }, []);
+
   const loadTrends = React.useCallback(() => {
     if (featureFlags?.dashboardTrends === false) {
       setTrends({ incidentsByDay: [], allocationsByDay: [], stockByCategory: [] });
@@ -104,17 +112,32 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
   }, [featureFlags?.dashboardTrends]);
 
   useEffect(() => {
-    loadTrends().finally(() => setLastSyncAt(new Date()));
-  }, [loadTrends]);
+    Promise.all([loadTrends(), loadDashboardStats()]).finally(() => setLastSyncAt(new Date()));
+  }, [loadDashboardStats, loadTrends]);
 
   useEffect(() => {
     if (!refreshSeconds) return undefined;
     const timer = window.setInterval(() => {
-      Promise.all([reload(), loadTrends()]).finally(() => setLastSyncAt(new Date()));
+      Promise.all([reload(), loadTrends(), loadDashboardStats()]).finally(() => setLastSyncAt(new Date()));
     }, refreshSeconds * 1000);
 
     return () => window.clearInterval(timer);
-  }, [loadTrends, refreshSeconds, reload]);
+  }, [loadDashboardStats, loadTrends, refreshSeconds, reload]);
+
+  const statTotals = {
+    totalDisasters: dashboardStats?.disasters?.total ?? disasters.length,
+    activeDisasters: dashboardStats?.disasters?.active ?? activeDisasters,
+    totalStock: dashboardStats?.resources?.totalStock ?? available,
+    lowStock: dashboardStats?.resources?.lowStock ?? critical,
+    blockedTasks: dashboardStats?.operations?.blockedTasks ?? blockedOts,
+    criticalHazardZones: dashboardStats?.operations?.criticalHazardZones ?? criticalHazardZones,
+    volunteerReadiness: dashboardStats?.volunteers?.readiness ?? volunteerReadiness,
+    availableVolunteers: dashboardStats?.volunteers?.available ?? availableVolunteers,
+    onMissionVolunteers: dashboardStats?.volunteers?.onMission ?? onMissionVolunteers,
+    assignedResources: dashboardStats?.resources?.assigned ?? assignedCount,
+    resourceLines: dashboardStats?.resources?.total ?? resources.length,
+    deploymentRate: dashboardStats?.resources?.deploymentRate ?? deploymentRate,
+  };
 
   const severityColor = (s) => s === 'Critical' ? 'var(--red)' : s === 'High' ? 'var(--orange)' : s === 'Moderate' ? 'var(--yellow)' : 'var(--green)';
   const severityClass = (s) => s === 'Critical' ? 'badge-red' : s === 'High' ? 'badge-orange' : s === 'Moderate' ? 'badge-yellow' : 'badge-green';
@@ -184,25 +207,25 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
             <div className="stat-card">
               <div className="stat-glow" style={{background:'rgba(221,76,111,.24)'}} />
               <div className="stat-label">⚠️ Total Disasters</div>
-              <div className="stat-value" style={{color:'var(--red)'}}>{disasters.length}</div>
-              <div className="stat-delta">{activeDisasters} active incidents</div>
+              <div className="stat-value" style={{color:'var(--red)'}}>{statTotals.totalDisasters}</div>
+              <div className="stat-delta">{statTotals.activeDisasters} active incidents</div>
             </div>
             <div className="stat-card">
               <div className="stat-glow" style={{background:'rgba(15,143,149,.25)'}} />
               <div className="stat-label">📦 Resources Available</div>
-              <div className="stat-value" style={{color:'var(--blue)'}}>{available.toLocaleString()}</div>
-              <div className="stat-delta">{critical} items critically low</div>
+              <div className="stat-value" style={{color:'var(--blue)'}}>{statTotals.totalStock.toLocaleString()}</div>
+              <div className="stat-delta">{statTotals.lowStock} items critically low</div>
             </div>
             <div className="stat-card">
               <div className="stat-glow" style={{background:'rgba(47,154,99,.24)'}} />
               <div className="stat-label">🛰️ OTS / Hazard Alerts</div>
-              <div className="stat-value" style={{color:'var(--green)'}}>{blockedOts + criticalHazardZones}</div>
+              <div className="stat-value" style={{color:'var(--green)'}}>{statTotals.blockedTasks + statTotals.criticalHazardZones}</div>
               <div className="stat-delta">{blockedOts} blocked tasks · {criticalHazardZones} critical zones</div>
             </div>
             <div className="stat-card">
               <div className="stat-glow" style={{background:'rgba(56,144,108,.24)'}} />
               <div className="stat-label">👥 Volunteer Readiness</div>
-              <div className="stat-value" style={{color:'var(--green)'}}>{volunteerReadiness}%</div>
+              <div className="stat-value" style={{color:'var(--green)'}}>{statTotals.volunteerReadiness}%</div>
               <div className="stat-delta">{availableVolunteers} available · {onMissionVolunteers} on mission</div>
             </div>
           </div>
@@ -216,9 +239,9 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
             </div>
             <div className="widget">
               <div className="widget-kicker">Deployment Rate</div>
-              <div className="widget-value">{deploymentRate}%</div>
-              <div className="widget-sub">{assignedCount} of {resources.length || 0} resource lines currently assigned.</div>
-              <div className="widget-meter"><span style={{ width: `${Math.max(6, deploymentRate)}%`, background: 'linear-gradient(90deg,var(--green),var(--cyan))' }} /></div>
+              <div className="widget-value">{statTotals.deploymentRate}%</div>
+              <div className="widget-sub">{statTotals.assignedResources} of {statTotals.resourceLines || 0} resource lines currently assigned.</div>
+              <div className="widget-meter"><span style={{ width: `${Math.max(6, statTotals.deploymentRate)}%`, background: 'linear-gradient(90deg,var(--green),var(--cyan))' }} /></div>
             </div>
             <div className="widget">
               <div className="widget-kicker">24h Allocation Tempo</div>
@@ -313,11 +336,11 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
                 </div>
                 <div className="mini-kpi">
                   <div className="mini-kpi-label">Critical Zones</div>
-                  <div className="mini-kpi-value">{criticalHazardZones}</div>
+                  <div className="mini-kpi-value">{statTotals.criticalHazardZones}</div>
                 </div>
                 <div className="mini-kpi">
                   <div className="mini-kpi-label">Ready Volunteers</div>
-                  <div className="mini-kpi-value">{availableVolunteers}</div>
+                  <div className="mini-kpi-value">{statTotals.availableVolunteers}</div>
                 </div>
               </div>
               <div className="brief-list">
