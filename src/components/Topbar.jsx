@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
+import { getQueuedMutationCount, replayQueuedMutations } from '../api';
 
 export default function Topbar({ title, subtitle, actions, currentUser, onLogout }) {
   const navigate = useNavigate();
@@ -8,6 +9,36 @@ export default function Topbar({ title, subtitle, actions, currentUser, onLogout
   const [notice, setNotice] = React.useState('');
   const [query, setQuery] = React.useState('');
   const [focused, setFocused] = React.useState(false);
+  const [queuedCount, setQueuedCount] = React.useState(() => getQueuedMutationCount());
+  const [isOnline, setIsOnline] = React.useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+
+  React.useEffect(() => {
+    const syncQueueState = () => {
+      setQueuedCount(getQueuedMutationCount());
+      setIsOnline(typeof navigator === 'undefined' ? true : navigator.onLine);
+    };
+
+    syncQueueState();
+    window.addEventListener('online', syncQueueState);
+    window.addEventListener('offline', syncQueueState);
+    window.addEventListener('drams:queue-changed', syncQueueState);
+    window.addEventListener('drams:queue-replayed', syncQueueState);
+
+    return () => {
+      window.removeEventListener('online', syncQueueState);
+      window.removeEventListener('offline', syncQueueState);
+      window.removeEventListener('drams:queue-changed', syncQueueState);
+      window.removeEventListener('drams:queue-replayed', syncQueueState);
+    };
+  }, []);
+
+  const handleSyncQueue = async () => {
+    setNotice('Replaying queued field updates...');
+    await replayQueuedMutations();
+    const remaining = getQueuedMutationCount();
+    setQueuedCount(remaining);
+    setNotice(remaining ? `${remaining} updates still queued.` : 'Queued updates synced.');
+  };
 
   const searchResults = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -134,6 +165,16 @@ export default function Topbar({ title, subtitle, actions, currentUser, onLogout
             </div>
           )}
         </div>
+        <button
+          className="topbar-user-chip sync-status-chip"
+          type="button"
+          onClick={queuedCount ? handleSyncQueue : undefined}
+          title={queuedCount ? 'Replay queued updates' : isOnline ? 'Online' : 'Offline'}
+          style={{ cursor: queuedCount ? 'pointer' : 'default' }}
+        >
+          <strong>{queuedCount ? `${queuedCount} queued` : isOnline ? 'Online' : 'Offline'}</strong>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{queuedCount ? 'Pending sync' : 'Sync status'}</span>
+        </button>
         <div className="topbar-user-chip">
           <strong>{currentUser?.username || 'admin'}</strong>
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{currentUser?.role || 'Operator'} Console</span>
