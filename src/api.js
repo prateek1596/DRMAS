@@ -11,6 +11,8 @@ let isRefreshing = false;
 let refreshPromise = null;
 
 const queuedMutationsKey = "drams_queued_mutations";
+const QUEUE_CHANGED_EVENT = "drams:queue-changed";
+const QUEUE_REPLAYED_EVENT = "drams:queue-replayed";
 
 function safeParse(value) {
   try {
@@ -57,14 +59,30 @@ function getQueuedMutations() {
   return safeParse(localStorage.getItem(queuedMutationsKey)) || [];
 }
 
+function emitQueueChanged(queue = getQueuedMutations()) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(QUEUE_CHANGED_EVENT, { detail: { count: queue.length, queue } }));
+}
+
 function setQueuedMutations(queue) {
   localStorage.setItem(queuedMutationsKey, JSON.stringify(queue));
+  emitQueueChanged(queue);
 }
 
 function enqueueMutation(entry) {
   const queue = getQueuedMutations();
-  queue.push({ ...entry, queuedAt: new Date().toISOString() });
+  const queuedEntry = {
+    ...entry,
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    queuedAt: new Date().toISOString(),
+  };
+  queue.push(queuedEntry);
   setQueuedMutations(queue);
+  return queuedEntry;
+}
+
+export function getQueuedMutationCount() {
+  return getQueuedMutations().length;
 }
 
 function wait(ms) {
@@ -133,8 +151,11 @@ async function request(path, options = {}, retryOnAuth = true, queueOnOffline = 
 
   const doRequest = async () => {
     if (typeof navigator !== "undefined" && !navigator.onLine && shouldQueueOnOffline) {
-      enqueueMutation({ path, options });
-      return { queued: true, offline: true };
+      if (!queueOnOffline) {
+        throw Object.assign(new Error("Still offline. Mutation remains queued."), { status: 0, offline: true });
+      }
+      const queuedEntry = enqueueMutation({ path, options });
+      return { queued: true, offline: true, queuedAt: queuedEntry.queuedAt, queueId: queuedEntry.id };
     }
 
     const headers = {
@@ -194,14 +215,16 @@ export async function replayQueuedMutations() {
 
   for (const entry of queue) {
     try {
-      // Replayed mutations skip re-queueing to avoid loops.
-      await request(entry.path, entry.options, true);
+      await request(entry.path, entry.options, true, false);
     } catch {
       remaining.push(entry);
     }
   }
 
   setQueuedMutations(remaining);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(QUEUE_REPLAYED_EVENT, { detail: { replayed: queue.length - remaining.length, remaining: remaining.length } }));
+  }
 }
 
 export const session = {
