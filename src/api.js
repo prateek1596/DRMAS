@@ -125,7 +125,7 @@ async function refreshAccessToken() {
   return refreshPromise;
 }
 
-async function request(path, options = {}, retryOnAuth = true) {
+async function request(path, options = {}, retryOnAuth = true, queueOnOffline = true) {
   const method = (options.method || "GET").toUpperCase();
   const shouldQueueOnOffline = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
   const authBypassPaths = ["/api/auth/login", "/api/auth/register", "/api/auth/refresh"];
@@ -168,7 +168,7 @@ async function request(path, options = {}, retryOnAuth = true) {
           body: payload,
         });
       }
-      return request(path, options, false);
+      return request(path, options, false, queueOnOffline);
     }
 
     if (!response.ok) {
