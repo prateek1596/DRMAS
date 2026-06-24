@@ -183,7 +183,7 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
       badgeClass: escalationIncidents.length ? 'badge-orange' : 'badge-green',
       onClick: () => onNav('report'),
     },
-    notificationRules.hazardCritical && {
+    notificationRules.hazardCritical && featureEnabled('hazardModule') && {
       key: 'critical-hazards',
       title: 'Critical hazards',
       meta: `${criticalZones.length} zones at critical risk`,
@@ -200,6 +200,9 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
       onClick: () => onNav('audit'),
     },
   ].filter(Boolean);
+  const notificationEmptyMessage = featureEnabled('hazardModule')
+    ? 'All dashboard notification rules are muted in Settings.'
+    : 'No enabled dashboard notifications. Disabled modules are hidden.';
 
   return (
     <div className="app-shell">
@@ -325,7 +328,7 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
                   <span className={`badge ${item.badgeClass}`}>{item.badge}</span>
                 </button>
               ))}
-              {notificationItems.length === 0 && <div className="widget-sub">All dashboard notification rules are muted in Settings.</div>}
+              {notificationItems.length === 0 && <div className="widget-sub">{notificationEmptyMessage}</div>}
             </div>
           </div>
 
