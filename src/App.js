@@ -14,30 +14,7 @@ import HazardZoning from './pages/HazardZoning';
 import AuditLogs from './pages/AuditLogs';
 import Volunteers from './pages/Volunteers';
 import Settings from './pages/Settings';
-
-const PAGE_ROUTES = {
-  dashboard: '/dashboard',
-  inventory: '/inventory',
-  report: '/report',
-  allocation: '/allocation',
-  ots: '/ots',
-  hazard: '/hazard',
-  audit: '/audit',
-  volunteers: '/volunteers',
-  settings: '/settings',
-};
-
-const PAGE_FLAG_MAP = {
-  allocation: 'allocationModule',
-  ots: 'otsModule',
-  hazard: 'hazardModule',
-  volunteers: 'volunteersModule',
-};
-
-function getPageFromPath(pathname) {
-  const match = Object.entries(PAGE_ROUTES).find(([, path]) => path === pathname);
-  return match ? match[0] : 'dashboard';
-}
+import { getPageFromPath, isPageEnabled, PAGE_ROUTES } from './navigation';
 
 function AppInner() {
   const navigate = useNavigate();
@@ -55,12 +32,6 @@ function AppInner() {
   const loggedIn = Boolean(currentUser);
   const page = getPageFromPath(location.pathname);
 
-  const isPageEnabled = (pageName) => {
-    const flag = PAGE_FLAG_MAP[pageName];
-    if (!flag) return true;
-    return featureFlags[flag] !== false;
-  };
-
   const loadSettings = useCallback(async () => {
     if (!loggedIn) {
       setCompactTables(false);
@@ -76,7 +47,7 @@ function AppInner() {
   }, [loggedIn]);
 
   const onNav = (nextPage) => {
-    const destination = isPageEnabled(nextPage) ? nextPage : 'dashboard';
+    const destination = isPageEnabled(nextPage, featureFlags) ? nextPage : 'dashboard';
     navigate(PAGE_ROUTES[destination] || PAGE_ROUTES.dashboard);
   };
 
@@ -122,7 +93,7 @@ function AppInner() {
 
   useEffect(() => {
     const desiredPage = getPageFromPath(location.pathname);
-    if (loggedIn && !isPageEnabled(desiredPage)) {
+    if (loggedIn && !isPageEnabled(desiredPage, featureFlags)) {
       navigate(PAGE_ROUTES.dashboard, { replace: true });
     }
   }, [featureFlags, location.pathname, loggedIn, navigate]);

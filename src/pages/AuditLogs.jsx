@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import PageState from '../components/PageState';
 import { api } from '../api';
+import { getEnabledPages } from '../navigation';
 
 function formatTime(iso) {
   if (!iso) return '-';

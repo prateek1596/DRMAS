@@ -4,6 +4,7 @@ import Topbar from '../components/Topbar';
 import PageState from '../components/PageState';
 import { useStore } from '../store';
 import { api } from '../api';
+import { getEnabledPages } from '../navigation';
 
 const DEFAULT_NOTIFICATIONS = {
   lowStockAlerts: true,
@@ -210,12 +211,7 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
         page={page}
         onNav={onNav}
         currentUser={currentUser}
-        enabledPages={{
-          allocation: featureFlags?.allocationModule !== false,
-          ots: featureFlags?.otsModule !== false,
-          hazard: featureFlags?.hazardModule !== false,
-          volunteers: featureFlags?.volunteersModule !== false,
-        }}
+        enabledPages={getEnabledPages(featureFlags)}
       />
       <div className="main-area page-dashboard">
         <Topbar title="Admin Overview" subtitle="Real-time resource and disaster tracking panel." currentUser={currentUser} onLogout={onLogout} />

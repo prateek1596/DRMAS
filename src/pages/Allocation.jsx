@@ -5,6 +5,7 @@ import PageState from '../components/PageState';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
 import { api } from '../api';
+import { getEnabledPages } from '../navigation';
 
 const ZONES = ['Zone A - Riverside', 'Zone B - Highland', 'Zone C - Downtown', 'Zone D - Coastal', 'Zone E - Industrial'];
 const DEFAULT_ZONE = 'Zone A - Riverside';
@@ -94,12 +95,7 @@ export default function Allocation({ page, onNav, currentUser, onLogout, feature
         page={page}
         onNav={onNav}
         currentUser={currentUser}
-        enabledPages={{
-          allocation: featureFlags?.allocationModule !== false,
-          ots: featureFlags?.otsModule !== false,
-          hazard: featureFlags?.hazardModule !== false,
-          volunteers: featureFlags?.volunteersModule !== false,
-        }}
+        enabledPages={getEnabledPages(featureFlags)}
       />
       <div className="main-area page-allocation">
         <Topbar title="Resource Allocation" subtitle="Deploy personnel and supplies to active response zones." currentUser={currentUser} onLogout={onLogout} />

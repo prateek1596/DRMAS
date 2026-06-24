@@ -7,6 +7,7 @@ import { useStore } from '../store';
 import { useToast } from '../components/Toast';
 import { api } from '../api';
 import useRequireDeleteConfirm from '../hooks/useRequireDeleteConfirm';
+import { getEnabledPages } from '../navigation';
 
 const TYPES = ['Flood', 'Earthquake', 'Wildfire', 'Hurricane', 'Tornado', 'Drought', 'Chemical Spill', 'Landslide', 'Tsunami', 'Disease Outbreak', 'Other'];
 const SEVERITIES = ['Critical', 'High', 'Moderate', 'Low'];
@@ -228,12 +229,7 @@ export default function Report({ page, onNav, currentUser, onLogout, featureFlag
         page={page}
         onNav={onNav}
         currentUser={currentUser}
-        enabledPages={{
-          allocation: featureFlags?.allocationModule !== false,
-          ots: featureFlags?.otsModule !== false,
-          hazard: featureFlags?.hazardModule !== false,
-          volunteers: featureFlags?.volunteersModule !== false,
-        }}
+        enabledPages={getEnabledPages(featureFlags)}
       />
       <div className="main-area page-report">
         <Topbar title="Disaster Reports" subtitle="Submit and manage high-priority incident reports." currentUser={currentUser} onLogout={onLogout} />

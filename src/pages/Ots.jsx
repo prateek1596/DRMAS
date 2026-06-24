@@ -6,6 +6,7 @@ import PageState from '../components/PageState';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
 import useRequireDeleteConfirm from '../hooks/useRequireDeleteConfirm';
+import { getEnabledPages } from '../navigation';
 
 const PRIORITIES = ['Critical', 'High', 'Moderate', 'Low'];
 const STATUS = ['Queued', 'In Progress', 'Blocked', 'Completed'];
@@ -225,12 +226,7 @@ export default function Ots({ page, onNav, currentUser, onLogout, featureFlags }
         page={page}
         onNav={onNav}
         currentUser={currentUser}
-        enabledPages={{
-          allocation: featureFlags?.allocationModule !== false,
-          ots: featureFlags?.otsModule !== false,
-          hazard: featureFlags?.hazardModule !== false,
-          volunteers: featureFlags?.volunteersModule !== false,
-        }}
+        enabledPages={getEnabledPages(featureFlags)}
       />
       <div className="main-area page-allocation">
         <Topbar

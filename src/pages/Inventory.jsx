@@ -6,6 +6,7 @@ import PageState from '../components/PageState';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
 import useRequireDeleteConfirm from '../hooks/useRequireDeleteConfirm';
+import { getEnabledPages } from '../navigation';
 
 const CATEGORIES = ['Medical', 'Water & Sanitation', 'Shelter', 'Food', 'Power', 'Rescue', 'Communication', 'Transport', 'Other'];
 const LOCATIONS = ['Zone A Depot', 'Zone B Depot', 'Zone C Depot', 'Zone D Depot', 'Storage Wing A', 'Storage Wing B', 'Cold Storage A', 'Main Depot', 'HQ Storage'];
@@ -171,12 +172,7 @@ export default function Inventory({ page, onNav, currentUser, onLogout, featureF
         page={page}
         onNav={onNav}
         currentUser={currentUser}
-        enabledPages={{
-          allocation: featureFlags?.allocationModule !== false,
-          ots: featureFlags?.otsModule !== false,
-          hazard: featureFlags?.hazardModule !== false,
-          volunteers: featureFlags?.volunteersModule !== false,
-        }}
+        enabledPages={getEnabledPages(featureFlags)}
       />
       <div className="main-area page-inventory">
         <Topbar title="Resource Inventory" subtitle="Manage and track your organization's assets in real-time." currentUser={currentUser} onLogout={onLogout} />

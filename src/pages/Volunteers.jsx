@@ -6,6 +6,7 @@ import PageState from '../components/PageState';
 import { useToast } from '../components/Toast';
 import { useStore } from '../store';
 import useRequireDeleteConfirm from '../hooks/useRequireDeleteConfirm';
+import { getEnabledPages } from '../navigation';
 
 const BLANK = {
   fullName: '',
@@ -194,12 +195,7 @@ export default function Volunteers({ page, onNav, currentUser, onLogout, feature
         page={page}
         onNav={onNav}
         currentUser={currentUser}
-        enabledPages={{
-          allocation: featureFlags?.allocationModule !== false,
-          ots: featureFlags?.otsModule !== false,
-          hazard: featureFlags?.hazardModule !== false,
-          volunteers: featureFlags?.volunteersModule !== false,
-        }}
+        enabledPages={getEnabledPages(featureFlags)}
       />
       <div className="main-area page-volunteers">
         <Topbar title="Volunteer Panel" subtitle="Manage responder availability, roles, and deployment readiness." currentUser={currentUser} onLogout={onLogout} />

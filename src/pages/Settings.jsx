@@ -4,6 +4,7 @@ import Topbar from '../components/Topbar';
 import PageState from '../components/PageState';
 import { useToast } from '../components/Toast';
 import { api } from '../api';
+import { getEnabledPages } from '../navigation';
 
 const DEFAULTS = {
   profile: {
@@ -178,12 +179,7 @@ export default function Settings({ page, onNav, currentUser, onLogout, featureFl
         page={page}
         onNav={onNav}
         currentUser={currentUser}
-        enabledPages={{
-          allocation: featureFlags?.allocationModule !== false,
-          ots: featureFlags?.otsModule !== false,
-          hazard: featureFlags?.hazardModule !== false,
-          volunteers: featureFlags?.volunteersModule !== false,
-        }}
+        enabledPages={getEnabledPages(featureFlags)}
       />
       <div className="main-area page-settings">
         <Topbar title="Settings Panel" subtitle="Configure profile, alerts, and operational preferences." currentUser={currentUser} onLogout={onLogout} />

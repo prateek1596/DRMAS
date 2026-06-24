@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast';
 import HazardMap from '../components/HazardMap';
 import { api } from '../api';
 import useRequireDeleteConfirm from '../hooks/useRequireDeleteConfirm';
+import { getEnabledPages } from '../navigation';
 
 const RISK = ['Critical', 'High', 'Moderate', 'Low'];
 const STATUS = ['Restricted', 'Monitoring', 'Evacuation', 'Stabilized'];
@@ -297,12 +298,7 @@ export default function HazardZoning({ page, onNav, currentUser, onLogout, featu
         page={page}
         onNav={onNav}
         currentUser={currentUser}
-        enabledPages={{
-          allocation: featureFlags?.allocationModule !== false,
-          ots: featureFlags?.otsModule !== false,
-          hazard: featureFlags?.hazardModule !== false,
-          volunteers: featureFlags?.volunteersModule !== false,
-        }}
+        enabledPages={getEnabledPages(featureFlags)}
       />
       <div className="main-area page-hazard">
         <Topbar
