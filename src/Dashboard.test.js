@@ -13,7 +13,7 @@ jest.mock('./store', () => ({
     disasters: [],
     allocations: [],
     otsTasks: [],
-    hazardZones: [],
+    hazardZones: [{ id: 1, name: 'Riverbank', riskLevel: 'Critical' }],
     volunteers: [],
     loading: false,
     error: '',
@@ -45,7 +45,10 @@ describe('Dashboard operational controls', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockReload.mockResolvedValue();
-    mockGetSettings.mockResolvedValue({ operations: { autoRefreshSeconds: '30' }, notifications: {} });
+    mockGetSettings.mockResolvedValue({
+      operations: { autoRefreshSeconds: '30' },
+      notifications: { hazardCritical: true },
+    });
     mockGetDashboardStats.mockResolvedValue(null);
     mockGetTrends.mockResolvedValue({ incidentsByDay: [], allocationsByDay: [], stockByCategory: [] });
   });
@@ -76,6 +79,8 @@ describe('Dashboard operational controls', () => {
     await waitFor(() => {
       expect(mockGetSettings).toHaveBeenCalled();
     });
+
+    expect(screen.queryByText('Critical hazards')).toBeNull();
   });
 
   test('refresh now reloads dashboard data', async () => {
