@@ -19,6 +19,7 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
   const [notificationRules, setNotificationRules] = useState(DEFAULT_NOTIFICATIONS);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [lastSyncAt, setLastSyncAt] = useState(() => new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const critical = resources.filter(r => r.status === 'Low').length;
   const activeDisasters = disasters.filter(d => d.status === 'Active' || d.status === 'Responding').length;
@@ -111,6 +112,16 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
       });
   }, [featureFlags?.dashboardTrends]);
 
+  const refreshDashboard = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([reload(), loadTrends(), loadDashboardStats()]);
+      setLastSyncAt(new Date());
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadDashboardStats, loadTrends, reload]);
+
   useEffect(() => {
     Promise.all([loadTrends(), loadDashboardStats()]).finally(() => setLastSyncAt(new Date()));
   }, [loadDashboardStats, loadTrends]);
@@ -118,11 +129,11 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
   useEffect(() => {
     if (!refreshSeconds) return undefined;
     const timer = window.setInterval(() => {
-      Promise.all([reload(), loadTrends(), loadDashboardStats()]).finally(() => setLastSyncAt(new Date()));
+      refreshDashboard();
     }, refreshSeconds * 1000);
 
     return () => window.clearInterval(timer);
-  }, [loadDashboardStats, loadTrends, refreshSeconds, reload]);
+  }, [refreshDashboard, refreshSeconds]);
 
   const statTotals = {
     totalDisasters: dashboardStats?.disasters?.total ?? disasters.length,
@@ -145,6 +156,16 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
   const escalationIncidents = disasters.filter((item) => item.status !== 'Resolved' && (item.severity === 'Critical' || item.severity === 'High'));
   const lowStockItems = resources.filter((item) => item.status === 'Low');
   const criticalZones = hazardZones.filter((item) => item.riskLevel === 'Critical');
+  const featureEnabled = (flag) => featureFlags?.[flag] !== false;
+  const quickActions = [
+    { key: 'report', label: 'Report Disaster', page: 'report', always: true },
+    { key: 'inventory', label: 'Manage Resources', page: 'inventory', always: true },
+    { key: 'allocation', label: 'Allocate Resources', page: 'allocation', flag: 'allocationModule' },
+    { key: 'ots', label: 'OTS Board', page: 'ots', flag: 'otsModule' },
+    { key: 'hazard', label: 'Hazard Zoning', page: 'hazard', flag: 'hazardModule' },
+    { key: 'volunteers', label: 'Volunteer Roster', page: 'volunteers', flag: 'volunteersModule' },
+  ].filter((item) => item.always || featureEnabled(item.flag));
+
   const notificationItems = [
     notificationRules.lowStockAlerts && {
       key: 'low-stock',
@@ -198,8 +219,11 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
         <div className="page-body">
           <PageState loading={loading} error={error} />
 
-          <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:20,fontSize:12,color:'var(--text-secondary)'}} className="anim-1">
-            <div className="pulse-dot" />Last sync: {lastSyncLabel} · refreshes every {refreshSeconds}s
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20,fontSize:12,color:'var(--text-secondary)',flexWrap:'wrap'}} className="anim-1">
+            <span style={{display:'inline-flex',alignItems:'center',gap:7}}><div className="pulse-dot" />Last sync: {lastSyncLabel} · refreshes every {refreshSeconds}s</span>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={refreshDashboard} disabled={isRefreshing}>
+              {isRefreshing ? 'Refreshing...' : 'Refresh now'}
+            </button>
           </div>
 
           {/* Stats */}
@@ -267,12 +291,16 @@ export default function Dashboard({ page, onNav, currentUser, onLogout, featureF
           <div className="card anim-2 mb-3">
             <div className="card-header"><span className="card-title">Quick Operational Actions</span></div>
             <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-              <button className="btn btn-primary" onClick={() => onNav('report')}>🚨 Report Disaster</button>
-              <button className="btn btn-outline" onClick={() => onNav('inventory')}>📦 Manage Resources</button>
-              <button className="btn btn-outline" onClick={() => onNav('allocation')}>🚁 Allocate Resources</button>
-              <button className="btn btn-outline" onClick={() => onNav('ots')}>🛰️ OTS Board</button>
-              <button className="btn btn-outline" onClick={() => onNav('hazard')}>🗺️ Hazard Zoning</button>
-              <button className="btn btn-outline" onClick={() => onNav('volunteers')}>👥 Volunteer Roster</button>
+              {quickActions.map((action, index) => (
+                <button
+                  key={action.key}
+                  className={index === 0 ? 'btn btn-primary' : 'btn btn-outline'}
+                  type="button"
+                  onClick={() => onNav(action.page)}
+                >
+                  {action.label}
+                </button>
+              ))}
             </div>
           </div>
 
