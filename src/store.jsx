@@ -39,6 +39,19 @@ export function StoreProvider({ children }) {
     loadBootstrap();
   }, [loadBootstrap]);
 
+  useEffect(() => {
+    const refreshAfterReplay = (event) => {
+      if (event.detail?.replayed > 0) {
+        loadBootstrap();
+      }
+    };
+
+    window.addEventListener('drams:queue-replayed', refreshAfterReplay);
+    return () => {
+      window.removeEventListener('drams:queue-replayed', refreshAfterReplay);
+    };
+  }, [loadBootstrap]);
+
   const addResource = async (payload) => {
     const created = await api.createResource(payload);
     if (isQueuedMutation(created)) return created;

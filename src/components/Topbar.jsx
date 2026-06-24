@@ -11,6 +11,7 @@ export default function Topbar({ title, subtitle, actions, currentUser, onLogout
   const [focused, setFocused] = React.useState(false);
   const [queuedCount, setQueuedCount] = React.useState(() => getQueuedMutationCount());
   const [isOnline, setIsOnline] = React.useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+  const [isSyncing, setIsSyncing] = React.useState(false);
 
   React.useEffect(() => {
     const syncQueueState = () => {
@@ -33,11 +34,21 @@ export default function Topbar({ title, subtitle, actions, currentUser, onLogout
   }, []);
 
   const handleSyncQueue = async () => {
+    if (isSyncing) return;
+
+    setIsSyncing(true);
     setNotice('Replaying queued field updates...');
-    await replayQueuedMutations();
-    const remaining = getQueuedMutationCount();
-    setQueuedCount(remaining);
-    setNotice(remaining ? `${remaining} updates still queued.` : 'Queued updates synced.');
+
+    try {
+      await replayQueuedMutations();
+      const remaining = getQueuedMutationCount();
+      setQueuedCount(remaining);
+      setNotice(remaining ? `${remaining} updates still queued.` : 'Queued updates synced.');
+    } catch (error) {
+      setNotice(error?.message || 'Sync failed. Queued updates are still safe.');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const searchResults = React.useMemo(() => {
@@ -169,10 +180,11 @@ export default function Topbar({ title, subtitle, actions, currentUser, onLogout
           className="topbar-user-chip sync-status-chip"
           type="button"
           onClick={queuedCount ? handleSyncQueue : undefined}
+          disabled={isSyncing}
           title={queuedCount ? 'Replay queued updates' : isOnline ? 'Online' : 'Offline'}
-          style={{ cursor: queuedCount ? 'pointer' : 'default' }}
+          style={{ cursor: queuedCount && !isSyncing ? 'pointer' : 'default' }}
         >
-          <strong>{queuedCount ? `${queuedCount} queued` : isOnline ? 'Online' : 'Offline'}</strong>
+          <strong>{isSyncing ? 'Syncing...' : queuedCount ? `${queuedCount} queued` : isOnline ? 'Online' : 'Offline'}</strong>
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{queuedCount ? 'Pending sync' : 'Sync status'}</span>
         </button>
         <div className="topbar-user-chip">
