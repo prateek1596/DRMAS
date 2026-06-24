@@ -74,13 +74,7 @@ export default function AuditLogs({ page, onNav, currentUser, onLogout, featureF
         page={page}
         onNav={onNav}
         currentUser={currentUser}
-        enabledPages={{
-          allocation: featureFlags?.allocationModule !== false,
-          ots: featureFlags?.otsModule !== false,
-          hazard: featureFlags?.hazardModule !== false,
-          volunteers: featureFlags?.volunteersModule !== false,
-          audit: true,
-        }}
+        enabledPages={getEnabledPages(featureFlags)}
       />
 
       <div className="main-area page-dashboard">
@@ -159,3 +153,4 @@ export default function AuditLogs({ page, onNav, currentUser, onLogout, featureF
     </div>
   );
 }
+
